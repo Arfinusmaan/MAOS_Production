@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { Loader2, Plus, Pencil, Check, X, ShieldCheck, DollarSign, Users } from 'lucide-react';
+import { Loader2, Plus, Pencil, Check, X, ShieldCheck, DollarSign, Users, Eye, Clock, Calendar } from 'lucide-react';
 
 const EMPTY_FORM = {
   client_id: '', user_id: '', amount: '', type: 'setup',
@@ -20,6 +20,7 @@ export default function AdminCommissions() {
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [editId, setEditId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
+  const [selectedTeammateMRR, setSelectedTeammateMRR] = useState<any | null>(null);
 
   const fetch = async () => {
     setLoading(true);
@@ -55,6 +56,23 @@ export default function AdminCommissions() {
       seenClients.add(c.client_id);
       totalInflow += Number(c.clients.mrr) || 0;
     }
+  });
+
+  // Group active recurring commissions by teammate
+  const teammatesMRR: any = {};
+  activeRecurring.forEach(c => {
+    const key = c.user_id;
+    if (!teammatesMRR[key]) {
+      teammatesMRR[key] = {
+        userId: key,
+        name: c._user ? `${c._user.first_name} ${c._user.last_name}` : 'Unknown Teammate',
+        role: c._user?.role || '',
+        totalMRRPayout: 0,
+        deals: []
+      };
+    }
+    teammatesMRR[key].totalMRRPayout += Number(c.amount) || 0;
+    teammatesMRR[key].deals.push(c);
   });
 
   // Per-person approved payout summary (Unpaid)
@@ -225,7 +243,7 @@ export default function AdminCommissions() {
 
       {/* Active Monthly Recurring Payouts (MRR Ledger) */}
       {activeRecurring.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
             <DollarSign className="w-4 h-4 text-emerald-500" /> Active Monthly Recurring Commitments (MRR)
           </h2>
@@ -255,55 +273,114 @@ export default function AdminCommissions() {
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-muted-foreground bg-muted/35 uppercase border-b border-border">
                   <tr>
-                    <th className="px-5 py-3 font-medium">Teammate</th>
-                    <th className="px-5 py-3 font-medium">Client</th>
-                    <th className="px-5 py-3 font-medium text-right">Client MRR</th>
-                    <th className="px-5 py-3 font-medium text-right">Payout Amount</th>
-                    <th className="px-5 py-3 font-medium text-center">Payout Schedule (Date Paid)</th>
+                    <th className="px-5 py-3 font-semibold">Teammate</th>
+                    <th className="px-5 py-3 font-semibold">Base Role</th>
+                    <th className="px-5 py-3 font-semibold text-right">Total MRR Payout</th>
+                    <th className="px-5 py-3 font-semibold text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/50">
-                  {activeRecurring.map((tx: any) => {
-                    const payDate = tx.paid_at ? new Date(tx.paid_at) : null;
-                    const daySuffix = (day: number) => {
-                      if (day > 3 && day < 21) return 'th';
-                      switch (day % 10) {
-                        case 1:  return "st";
-                        case 2:  return "nd";
-                        case 3:  return "rd";
-                        default: return "th";
-                      }
-                    };
-                    const payDayText = payDate 
-                      ? `${payDate.getDate()}${daySuffix(payDate.getDate())} of every month`
-                      : 'Not paid yet';
-
-                    return (
-                      <tr key={tx.id} className="hover:bg-muted/10 transition-colors">
-                        <td className="px-5 py-3 font-medium text-foreground">
-                          {tx._user ? `${tx._user.first_name} ${tx._user.last_name}` : 'Unknown Teammate'}
-                        </td>
-                        <td className="px-5 py-3 text-muted-foreground">
-                          {tx.clients?.company_name || 'Deleted Client'}
-                        </td>
-                        <td className="px-5 py-3 text-right font-medium text-foreground">
-                          ${Number(tx.clients?.mrr || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
-                        </td>
-                        <td className="px-5 py-3 text-right font-bold text-accent">
-                          ${Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
-                        </td>
-                        <td className="px-5 py-3 text-center text-xs">
-                          <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-500 rounded-full font-semibold">
-                            🔄 Pay on {payDayText}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {Object.values(teammatesMRR).map((tm: any) => (
+                    <tr key={tm.userId} className="hover:bg-muted/10 transition-colors">
+                      <td className="px-5 py-3 font-semibold text-foreground flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-accent/10 text-accent font-bold text-xs flex items-center justify-center border border-accent/20">
+                          {tm.name[0]}
+                        </div>
+                        {tm.name}
+                      </td>
+                      <td className="px-5 py-3 text-muted-foreground capitalize">
+                        {tm.role.replace(/_/g, ' ')}
+                      </td>
+                      <td className="px-5 py-3 text-right font-extrabold text-emerald-500">
+                        ${tm.totalMRRPayout.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
+                      </td>
+                      <td className="px-5 py-3 text-center">
+                        <Button 
+                          onClick={() => setSelectedTeammateMRR(tm)}
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 gap-1 text-xs border border-accent/20 text-accent hover:bg-accent/5"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> View Payout Details
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </Card>
+        </div>
+      )}
+
+      {/* Drill-down Detail Modal */}
+      {selectedTeammateMRR && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-background border border-border rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setSelectedTeammateMRR(null)}
+              className="absolute top-4 right-4 p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-full bg-accent/15 text-accent flex items-center justify-center font-bold text-lg border border-accent/20">
+                {selectedTeammateMRR.name[0]}
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-foreground">{selectedTeammateMRR.name}</h3>
+                <p className="text-xs text-muted-foreground capitalize">{selectedTeammateMRR.role.replace(/_/g, ' ')} · Active MRR Payouts</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
+              {selectedTeammateMRR.deals.map((tx: any) => {
+                const payDate = tx.paid_at ? new Date(tx.paid_at) : null;
+                const closeDate = tx.created_at ? new Date(tx.created_at) : null;
+                
+                return (
+                  <div key={tx.id} className="border border-border/50 rounded-xl p-4 bg-muted/20 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-foreground text-sm">{tx.clients?.company_name || 'Deleted Client'}</p>
+                        <p className="text-xs text-accent capitalize font-medium mt-0.5">
+                          💼 {tx.commission_role?.replace(/_/g, ' ')}
+                        </p>
+                      </div>
+                      <span className="text-sm font-bold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
+                        +${Number(tx.amount).toFixed(2)}/mo
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border/40 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span>Closed On: <strong className="text-foreground font-medium">{closeDate ? closeDate.toLocaleDateString() : 'N/A'}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span>Plan Type: <strong className="text-foreground font-medium capitalize">{tx.clients?.plan_type || 'Custom'}</strong></span>
+                      </div>
+                      <div className="col-span-2 flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Payout Billing Date: <strong className="text-foreground font-medium">{payDate ? payDate.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-between items-center mt-6 pt-4 border-t border-border">
+              <span className="text-xs text-muted-foreground">
+                Total monthly commitments: <strong className="text-foreground font-bold">${selectedTeammateMRR.totalMRRPayout.toFixed(2)}/mo</strong>
+              </span>
+              <Button onClick={() => setSelectedTeammateMRR(null)} size="sm">
+                Close Details
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
