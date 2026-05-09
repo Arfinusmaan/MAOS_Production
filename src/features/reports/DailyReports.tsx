@@ -222,8 +222,9 @@ function TeammateDailyReportView() {
   const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
-  const [report, setReport] = useState({
+  const defaultReport = {
     id: '',
     calls_made: 0,
     voicemails: 0,
@@ -232,22 +233,44 @@ function TeammateDailyReportView() {
     shows: 0,
     closings: 0,
     notes: ''
-  });
+  };
 
-  const goal = 250;
+  const [report, setReport] = useState(defaultReport);
+
+  const [goal, setGoal] = useState(250);
   const percentage = Math.round(((report.calls_made || 0) / goal) * 100);
 
+  // Fetch dynamic call target goal from global_settings
+  useEffect(() => {
+    const fetchGoal = async () => {
+      try {
+        const { data } = await supabase
+          .from('global_settings')
+          .select('value')
+          .eq('key', 'daily_call_target')
+          .maybeSingle();
+        if (data && data.value) {
+          setGoal(Number(data.value) || 250);
+        }
+      } catch (err) {
+        console.warn('Could not fetch daily call target setting, using fallback 250', err);
+      }
+    };
+    fetchGoal();
+  }, []);
+
+  // Load report for selected date
   useEffect(() => {
     if (!user) return;
+    setIsLoading(true);
 
-    const fetchTodayReport = async () => {
+    const fetchReport = async () => {
       try {
-        const today = new Date().toISOString().split('T')[0];
         const { data } = await supabase
           .from('daily_reports')
           .select('*')
           .eq('user_id', user.id)
-          .eq('date', today)
+          .eq('date', selectedDate)
           .single();
 
         if (data) {
@@ -261,16 +284,20 @@ function TeammateDailyReportView() {
             closings: data.closings || 0,
             notes: data.notes || ''
           });
+        } else {
+          // No report for this date — reset form to zero
+          setReport(defaultReport);
         }
       } catch {
-        // No report yet for today — that's fine
+        // No report yet — reset to zero
+        setReport(defaultReport);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchTodayReport();
-  }, [user]);
+    fetchReport();
+  }, [user, selectedDate]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -278,11 +305,9 @@ function TeammateDailyReportView() {
 
     setIsSaving(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
-
       const payload = {
         user_id: user.id,
-        date: today,
+        date: selectedDate,
         calls_made: Number(report.calls_made),
         voicemails: Number(report.voicemails),
         pickups: Number(report.pickups),
@@ -295,15 +320,18 @@ function TeammateDailyReportView() {
       if (report.id) {
         const { error } = await supabase.from('daily_reports').update(payload).eq('id', report.id);
         if (error) throw error;
-        await supabase.from('activities').insert({ user_id: user.id, action: `updated their daily report with ${payload.calls_made} calls` });
+        await supabase.from('activities').insert({ user_id: user.id, action: `updated daily report for ${selectedDate} with ${payload.calls_made} calls` });
+        toast.success('Report updated! Form reset.');
       } else {
         const { data, error } = await supabase.from('daily_reports').insert(payload).select().single();
         if (error) throw error;
-        setReport({ ...report, id: data.id });
-        await supabase.from('activities').insert({ user_id: user.id, action: `submitted their daily report with ${payload.calls_made} calls` });
+        toast.success('Report saved! ✅ Form reset to today.');
+        await supabase.from('activities').insert({ user_id: user.id, action: `submitted daily report for ${selectedDate} with ${payload.calls_made} calls` });
       }
 
-      toast.success('Daily report saved successfully!');
+      // Reset date to today and values to zero so they can add reports sequentially or daily without confusion
+      setSelectedDate(new Date().toISOString().split('T')[0]);
+      setReport(defaultReport);
     } catch (error: any) {
       console.error('Error saving report:', error);
       toast.error('Failed to save report: ' + error.message);
@@ -312,15 +340,34 @@ function TeammateDailyReportView() {
     }
   };
 
+  const displayDate = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+  });
+  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+
   if (isLoading) {
     return <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Daily Reports</h1>
-        <p className="text-muted-foreground mt-1">Track your daily outreach and goal completion.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Daily Reports</h1>
+          <p className="text-muted-foreground mt-1">Track your daily outreach and goal completion.</p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <input
+            type="date"
+            value={selectedDate}
+            max={new Date().toISOString().split('T')[0]}
+            onChange={e => setSelectedDate(e.target.value)}
+            className="rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:border-accent"
+          />
+          <p className="text-xs text-muted-foreground">
+            {report.id ? `✓ Report saved for ${displayDate}` : `No report yet for ${displayDate}`}
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -352,14 +399,14 @@ function TeammateDailyReportView() {
 
           <div className="text-center space-y-1 z-10">
             <p className="text-lg font-medium">{report.calls_made} / {goal} Calls</p>
-            <p className="text-sm text-muted-foreground">{Math.max(0, goal - report.calls_made)} calls remaining today</p>
+            <p className="text-sm text-muted-foreground">{Math.max(0, goal - report.calls_made)} calls remaining</p>
           </div>
         </Card>
 
         {/* Input Form */}
         <Card className="col-span-1 md:col-span-2 border border-border shadow-sm">
           <CardHeader>
-            <CardTitle>{report.id ? 'Update Report' : 'Log Activity'}</CardTitle>
+            <CardTitle>{report.id ? `Update Report — ${isToday ? 'Today' : displayDate}` : `Log Activity — ${isToday ? 'Today' : displayDate}`}</CardTitle>
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={handleSave}>

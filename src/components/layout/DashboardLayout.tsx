@@ -29,6 +29,12 @@ const BASE_SIDEBAR_ITEMS = [
   { icon: Settings, label: 'Settings', href: '/settings' },
 ];
 
+const ADMIN_SIDEBAR_ITEMS = [
+  { icon: ShieldCheck, label: 'Control Center', href: '/admin' },
+  { icon: ShieldAlert, label: 'Team Payouts', href: '/admin/commissions' },
+  { icon: Users, label: 'Manage Users', href: '/admin/users' },
+];
+
 export default function DashboardLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -99,11 +105,13 @@ export default function DashboardLayout() {
     navigate('/login');
   };
 
-  // Add Admin Tabs if user is admin
+  // Add Admin section if user is admin
   const sidebarItems = isAdmin 
     ? [
-        ...BASE_SIDEBAR_ITEMS, 
-        { icon: ShieldCheck, label: 'Master Control', href: '/admin' },
+        ...BASE_SIDEBAR_ITEMS,
+        { icon: ShieldCheck, label: 'Control Center', href: '/admin' },
+        { icon: ShieldAlert, label: 'Team Payouts', href: '/admin/commissions' },
+        { icon: Users, label: 'Manage Users', href: '/admin/users' },
       ]
     : BASE_SIDEBAR_ITEMS;
 

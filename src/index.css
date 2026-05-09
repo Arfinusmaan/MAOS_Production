@@ -1,40 +1,28 @@
 @import "tailwindcss";
 
-@theme {
-  --color-primary: #D9ECFF;
-  --color-accent: #8CC7FF;
-  --color-background: #FFFFFF;
-  --color-surface: #F5F7FA;
-  --color-border: #1E1E1E;
-  --color-border-light: #E5E7EB;
-  --color-text-main: #111111;
-  --color-text-muted: #6B7280;
-
-  --radius-xl: 24px;
-}
-
+/* ─── Step 1: CSS Custom Properties (theme tokens) ────────────────────────── */
 @layer base {
   :root {
     --background: #FFFFFF;
     --foreground: #111111;
-    --card: #FFFFFF;
+    --card: #F9FAFB;
     --card-foreground: #111111;
     --popover: #FFFFFF;
     --popover-foreground: #111111;
-    --primary: #D9ECFF;
-    --primary-foreground: #111111;
-    --secondary: #F5F7FA;
-    --secondary-foreground: #111111;
+    --primary: #6366f1;
+    --primary-foreground: #FFFFFF;
+    --secondary: #F3F4F6;
+    --secondary-foreground: #374151;
     --muted: #F3F4F6;
     --muted-foreground: #6B7280;
-    --accent: #8CC7FF;
-    --accent-foreground: #111111;
+    --accent: #6366f1;
+    --accent-foreground: #FFFFFF;
     --destructive: #EF4444;
     --destructive-foreground: #FFFFFF;
     --border: #E5E7EB;
     --input: #E5E7EB;
-    --ring: #8CC7FF;
-    --radius: 24px;
+    --ring: #6366f1;
+    --surface: #F5F7FA;
   }
 
   .dark {
@@ -44,28 +32,61 @@
     --card-foreground: #FAFAFA;
     --popover: #18181B;
     --popover-foreground: #FAFAFA;
-    --primary: #8CC7FF;
+    --primary: #818cf8;
     --primary-foreground: #09090B;
     --secondary: #27272A;
     --secondary-foreground: #FAFAFA;
     --muted: #27272A;
     --muted-foreground: #A1A1AA;
-    --accent: #D9ECFF;
-    --accent-foreground: #09090B;
-    --destructive: #7F1D1D;
+    --accent: #818cf8;
+    --accent-foreground: #FAFAFA;
+    --destructive: #EF4444;
     --destructive-foreground: #FAFAFA;
     --border: #27272A;
     --input: #27272A;
-    --ring: #8CC7FF;
+    --ring: #818cf8;
+    --surface: #0D0D10;
   }
 
   * {
     border-color: var(--border);
+    box-sizing: border-box;
   }
+
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 }
+
+/* ─── Step 2: Wire Tailwind utilities to the CSS vars (enables dark mode) ── */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface: var(--surface);
+}
+
+/* ─── Custom scrollbar ──────────────────────────────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }

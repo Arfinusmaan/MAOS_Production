@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       if (session?.user) {
         set({ user: session.user });
-        // Fetch profile
+        // Fetch profile synchronously before setting isLoading to false
         const { data: profile } = await supabase
           .from('users')
           .select('*')
@@ -60,18 +60,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (profile) set({ profile });
       }
       
-      // Listen for auth changes
+      // Listen for subsequent auth changes
       supabase.auth.onAuthStateChange(async (event, session) => {
-        if (session?.user) {
-          set({ user: session.user });
-          const { data: profile } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          if (profile) set({ profile });
-        } else {
+        if (event === 'SIGNED_OUT') {
           set({ user: null, profile: null });
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          if (session?.user) {
+            set({ user: session.user });
+            const { data: profile } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            if (profile) set({ profile });
+          }
         }
       });
     } catch (error) {

@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
 export default function Settings() {
-  const { user, profile, fetchProfile } = useAuthStore();
+  const { user, profile, initialize } = useAuthStore();
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     first_name: '',
@@ -66,7 +66,8 @@ export default function Settings() {
 
       if (error) throw error;
       
-      await fetchProfile();
+      // Refresh profile from DB
+      await initialize();
       toast.success('Profile updated successfully!');
     } catch (error: any) {
       console.error('Error saving profile:', error);

@@ -22,6 +22,7 @@ import Leaderboard from './features/leaderboard/Leaderboard';
 import Settings from './features/settings/Settings';
 import AdminUsers from './features/admin/AdminUsers';
 import AdminDashboard from './features/admin/AdminDashboard';
+import AdminCommissions from './features/admin/AdminCommissions';
 
 // Route Guards
 const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode, requiredRole?: string }) => {
@@ -76,6 +77,12 @@ function App() {
           <Route path="/admin" element={
             <ProtectedRoute requiredRole="admin">
               <AdminDashboard />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/commissions" element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminCommissions />
             </ProtectedRoute>
           } />
           
