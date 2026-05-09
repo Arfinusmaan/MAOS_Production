@@ -25,7 +25,7 @@ export default function AdminCommissions() {
     setLoading(true);
     try {
       const [{ data: comms }, { data: cls }, { data: tms }] = await Promise.all([
-        supabase.from('commissions').select('*, clients(company_name)').order('created_at', { ascending: false }),
+        supabase.from('commissions').select('*, clients(company_name, mrr)').order('created_at', { ascending: false }),
         supabase.from('clients').select('id, company_name, plan_type'),
         supabase.from('users').select('id, first_name, last_name, role').neq('role', 'viewer'),
       ]);
@@ -41,7 +41,23 @@ export default function AdminCommissions() {
 
   useEffect(() => { fetch(); }, []);
 
-  // Per-person approved payout summary
+  // Active recurring MRR payouts list
+  const activeRecurring = commissions.filter(c => c.is_recurring && c.status === 'paid');
+  
+  // Calculate total client MRR inflow & total teammate payout outflow
+  let totalInflow = 0;
+  let totalOutflow = 0;
+  const seenClients = new Set();
+  
+  activeRecurring.forEach(c => {
+    totalOutflow += Number(c.amount) || 0;
+    if (c.clients && !seenClients.has(c.client_id)) {
+      seenClients.add(c.client_id);
+      totalInflow += Number(c.clients.mrr) || 0;
+    }
+  });
+
+  // Per-person approved payout summary (Unpaid)
   const personSummary: any = {};
   commissions.filter(c => c.status === 'pending').forEach(c => {
     const u = c._user;
@@ -204,6 +220,91 @@ export default function AdminCommissions() {
             <Button variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Button>
           </div>
         </Card>
+      )}
+
+
+      {/* Active Monthly Recurring Payouts (MRR Ledger) */}
+      {activeRecurring.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-emerald-500" /> Active Monthly Recurring Commitments (MRR)
+          </h2>
+          
+          {/* MRR Summary Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="p-4 border border-border bg-background">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Client MRR Inflow</p>
+              <p className="text-2xl font-bold text-foreground mt-1">${totalInflow.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Total monthly revenue from recurring clients</p>
+            </Card>
+            <Card className="p-4 border border-rose-500/10 bg-rose-500/5">
+              <p className="text-xs font-semibold text-rose-500 uppercase tracking-wider">Teammate MRR Outflow</p>
+              <p className="text-2xl font-bold text-rose-500 mt-1">${totalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Total monthly commitments owed to team</p>
+            </Card>
+            <Card className="p-4 border border-emerald-500/20 bg-emerald-500/5">
+              <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wider">Agency Net Recurring Profit</p>
+              <p className="text-2xl font-bold text-emerald-500 mt-1">${(totalInflow - totalOutflow).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Net monthly profit retained by agency</p>
+            </Card>
+          </div>
+
+          {/* List of active monthly commitments */}
+          <Card className="border border-border">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-muted-foreground bg-muted/35 uppercase border-b border-border">
+                  <tr>
+                    <th className="px-5 py-3 font-medium">Teammate</th>
+                    <th className="px-5 py-3 font-medium">Client</th>
+                    <th className="px-5 py-3 font-medium text-right">Client MRR</th>
+                    <th className="px-5 py-3 font-medium text-right">Payout Amount</th>
+                    <th className="px-5 py-3 font-medium text-center">Payout Schedule (Date Paid)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {activeRecurring.map((tx: any) => {
+                    const payDate = tx.paid_at ? new Date(tx.paid_at) : null;
+                    const daySuffix = (day: number) => {
+                      if (day > 3 && day < 21) return 'th';
+                      switch (day % 10) {
+                        case 1:  return "st";
+                        case 2:  return "nd";
+                        case 3:  return "rd";
+                        default: return "th";
+                      }
+                    };
+                    const payDayText = payDate 
+                      ? `${payDate.getDate()}${daySuffix(payDate.getDate())} of every month`
+                      : 'Not paid yet';
+
+                    return (
+                      <tr key={tx.id} className="hover:bg-muted/10 transition-colors">
+                        <td className="px-5 py-3 font-medium text-foreground">
+                          {tx._user ? `${tx._user.first_name} ${tx._user.last_name}` : 'Unknown Teammate'}
+                        </td>
+                        <td className="px-5 py-3 text-muted-foreground">
+                          {tx.clients?.company_name || 'Deleted Client'}
+                        </td>
+                        <td className="px-5 py-3 text-right font-medium text-foreground">
+                          ${Number(tx.clients?.mrr || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
+                        </td>
+                        <td className="px-5 py-3 text-right font-bold text-accent">
+                          ${Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
+                        </td>
+                        <td className="px-5 py-3 text-center text-xs">
+                          <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-500 rounded-full font-semibold">
+                            🔄 Pay on {payDayText}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
       )}
 
       {/* Transactions */}
