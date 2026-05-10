@@ -27,7 +27,7 @@ export default function AdminCommissions() {
     try {
       const [{ data: comms }, { data: cls }, { data: tms }] = await Promise.all([
         supabase.from('commissions').select('*, clients(company_name, mrr)').order('created_at', { ascending: false }),
-        supabase.from('clients').select('id, company_name, plan_type'),
+        supabase.from('clients').select('id, company_name, plan_type, setup_fee, mrr, stage'),
         supabase.from('users').select('id, first_name, last_name, role').neq('role', 'viewer'),
       ]);
       // attach user names
@@ -73,6 +73,26 @@ export default function AdminCommissions() {
     }
     teammatesMRR[key].totalMRRPayout += Number(c.amount) || 0;
     teammatesMRR[key].deals.push(c);
+  });
+
+  // ─── Setup Fee Track Calculations ──────────────────────────────────────────
+  // Sum of setup_fee for all closed clients
+  const totalSetupInflow = clients.filter(c => c.stage === 'Closed').reduce((sum, c) => sum + (Number(c.setup_fee) || 0), 0);
+  
+  // All approved/paid setup or bonus commissions
+  const setupCommissions = commissions.filter(c => (c.type === 'setup' || c.type === 'setter_bonus') && (c.status === 'paid' || c.status === 'pending'));
+  const totalSetupOutflow = setupCommissions.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
+  
+  // Group setup commissions by teammate
+  const teammateSetupSummary: Record<string, { userId: string; name: string; role: string; totalSetupPayout: number }> = {};
+  setupCommissions.forEach(c => {
+    const key = c.user_id;
+    const name = c._user ? `${c._user.first_name} ${c._user.last_name}` : 'Unknown Teammate';
+    const role = c._user?.role || '';
+    if (!teammateSetupSummary[key]) {
+      teammateSetupSummary[key] = { userId: key, name, role, totalSetupPayout: 0 };
+    }
+    teammateSetupSummary[key].totalSetupPayout += Number(c.amount) || 0;
   });
 
   // Per-person approved payout summary (Unpaid)
@@ -241,77 +261,159 @@ export default function AdminCommissions() {
       )}
 
 
-      {/* Active Monthly Recurring Payouts (MRR Ledger) */}
-      {activeRecurring.length > 0 && (
-        <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-            <DollarSign className="w-4 h-4 text-emerald-500" /> Active Monthly Recurring Commitments (MRR)
-          </h2>
-          
-          {/* MRR Summary Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="p-4 border border-border bg-background">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Client MRR Inflow</p>
-              <p className="text-2xl font-bold text-foreground mt-1">${totalInflow.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Total monthly revenue from recurring clients</p>
-            </Card>
-            <Card className="p-4 border border-rose-500/10 bg-rose-500/5">
-              <p className="text-xs font-semibold text-rose-500 uppercase tracking-wider">Teammate MRR Outflow</p>
-              <p className="text-2xl font-bold text-rose-500 mt-1">${totalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Total monthly commitments owed to team</p>
-            </Card>
-            <Card className="p-4 border border-emerald-500/20 bg-emerald-500/5">
-              <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wider">Agency Net Recurring Profit</p>
-              <p className="text-2xl font-bold text-emerald-500 mt-1">${(totalInflow - totalOutflow).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Net monthly profit retained by agency</p>
-            </Card>
-          </div>
+      {/* Comparative Financial Ledger Track (Setup vs MRR) */}
+      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-300">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <DollarSign className="w-4 h-4 text-accent" /> Agency Revenue & Team Payouts Ledger
+        </h2>
 
-          {/* List of active monthly commitments */}
-          <Card className="border border-border">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs text-muted-foreground bg-muted/35 uppercase border-b border-border">
-                  <tr>
-                    <th className="px-5 py-3 font-semibold">Teammate</th>
-                    <th className="px-5 py-3 font-semibold">Base Role</th>
-                    <th className="px-5 py-3 font-semibold text-right">Total MRR Payout</th>
-                    <th className="px-5 py-3 font-semibold text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/50">
-                  {Object.values(teammatesMRR).map((tm: any) => (
-                    <tr key={tm.userId} className="hover:bg-muted/10 transition-colors">
-                      <td className="px-5 py-3 font-semibold text-foreground flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-accent/10 text-accent font-bold text-xs flex items-center justify-center border border-accent/20">
-                          {tm.name[0]}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* ── TRACK 1: UPFRONT SETUP LEDGER ────────────────────────── */}
+          <Card className="border border-border bg-card/50 backdrop-blur-xl overflow-hidden flex flex-col hover:border-accent/20 transition-all shadow-lg hover:shadow-accent/5 duration-300">
+            <div className="p-5 border-b border-border/60 bg-muted/20 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center font-bold text-base shadow-sm">
+                  ⚡
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Upfront Setup Track</h3>
+                  <p className="text-[10px] text-muted-foreground">One-time deal setup revenues & commissions</p>
+                </div>
+              </div>
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-orange-500/10 text-orange-500">
+                One-Time
+              </span>
+            </div>
+
+            <div className="p-5 flex-1 flex flex-col justify-between space-y-5">
+              {/* Teammate payout list */}
+              <div>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Teammate Setup Share</p>
+                {Object.keys(teammateSetupSummary).length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-5 text-center bg-muted/10 rounded-xl border border-border/40 border-dashed">No setup commissions paid yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {Object.values(teammateSetupSummary).map((tm: any) => (
+                      <div key={tm.userId} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-muted/5 border border-border/40 hover:bg-muted/15 transition-all">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-6 h-6 rounded-full bg-orange-500/10 text-orange-500 font-bold text-[10px] flex items-center justify-center border border-orange-500/20">
+                            {tm.name[0]}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-foreground">{tm.name}</span>
+                            <span className="text-[9px] text-muted-foreground ml-2 capitalize">({tm.role.replace(/_/g, ' ')})</span>
+                          </div>
                         </div>
-                        {tm.name}
-                      </td>
-                      <td className="px-5 py-3 text-muted-foreground capitalize">
-                        {tm.role.replace(/_/g, ' ')}
-                      </td>
-                      <td className="px-5 py-3 text-right font-extrabold text-emerald-500">
-                        ${tm.totalMRRPayout.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <Button 
-                          onClick={() => setSelectedTeammateMRR(tm)}
-                          variant="outline" 
-                          size="sm" 
-                          className="h-8 gap-1 text-xs border border-accent/20 text-accent hover:bg-accent/5"
-                        >
-                          <Eye className="w-3.5 h-3.5" /> View Payout Details
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <span className="font-bold text-foreground">${tm.totalSetupPayout.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center text-xs border-t border-border/40 pt-3 font-semibold mt-1">
+                      <span className="text-muted-foreground">Total Setup Team Payouts (z)</span>
+                      <span className="font-extrabold text-orange-500 text-sm">${totalSetupOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Agency setup financials */}
+              <div className="border-t border-border/40 pt-4 space-y-2.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground font-semibold">Total Setup Revenue (a)</span>
+                  <span className="font-bold text-foreground text-sm">${totalSetupInflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 rounded-xl bg-orange-500/5 border border-orange-500/15">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Net Setup Profit (b)</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">Retained profit after setup commissions</p>
+                  </div>
+                  <span className="font-extrabold text-orange-500 text-base">
+                    ${(totalSetupInflow - totalSetupOutflow).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
             </div>
           </Card>
+
+          {/* ── TRACK 2: RECURRING MRR LEDGER ────────────────────────── */}
+          <Card className="border border-border bg-card/50 backdrop-blur-xl overflow-hidden flex flex-col hover:border-accent/20 transition-all shadow-lg hover:shadow-accent/5 duration-300">
+            <div className="p-5 border-b border-border/60 bg-muted/20 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-base shadow-sm">
+                  🔄
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Recurring MRR Track</h3>
+                  <p className="text-[10px] text-muted-foreground">Active client MRR revenues & teammate payouts</p>
+                </div>
+              </div>
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">
+                Monthly
+              </span>
+            </div>
+
+            <div className="p-5 flex-1 flex flex-col justify-between space-y-5">
+              {/* Teammate payout list */}
+              <div>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Teammate MRR Share</p>
+                {Object.keys(teammatesMRR).length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-5 text-center bg-muted/10 rounded-xl border border-border/40 border-dashed">No active MRR payouts.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {Object.values(teammatesMRR).map((tm: any) => (
+                      <div key={tm.userId} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-muted/5 border border-border/40 hover:bg-muted/15 transition-all">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-500 font-bold text-[10px] flex items-center justify-center border border-emerald-500/20">
+                            {tm.name[0]}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-foreground">{tm.name}</span>
+                            <span className="text-[9px] text-muted-foreground ml-2 capitalize">({tm.role.replace(/_/g, ' ')})</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-foreground">${tm.totalMRRPayout.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo</span>
+                          <Button 
+                            onClick={() => setSelectedTeammateMRR(tm)}
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
+                            title="View Payout Details"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center text-xs border-t border-border/40 pt-3 font-semibold mt-1">
+                      <span className="text-muted-foreground">Total MRR Team Payouts (z)</span>
+                      <span className="font-extrabold text-emerald-500 text-sm">${totalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Agency MRR financials */}
+              <div className="border-t border-border/40 pt-4 space-y-2.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground font-semibold">Total Client MRR Revenue (a)</span>
+                  <span className="font-bold text-foreground text-sm">${totalInflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo</span>
+                </div>
+                <div className="flex justify-between items-center p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Net Recurring Profit (b)</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">Retained monthly passive profit margin</p>
+                  </div>
+                  <span className="font-extrabold text-emerald-500 text-base">
+                    ${(totalInflow - totalOutflow).toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Card>
+
         </div>
-      )}
+      </div>
 
       {/* Drill-down Detail Modal */}
       {selectedTeammateMRR && (

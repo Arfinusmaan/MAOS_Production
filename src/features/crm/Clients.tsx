@@ -53,6 +53,7 @@ export default function Clients() {
   const [clients, setClients] = useState<any[]>([]);
   const [teammates, setTeammates] = useState<any[]>([]);
   const [customRates, setCustomRates] = useState<any>(null);
+  const [customPlans, setCustomPlans] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
@@ -87,18 +88,29 @@ export default function Clients() {
         .eq('status', 'active');
       if (teamData) setTeammates(teamData);
 
-      // Fetch custom commission rates
-      const { data: ratesSet } = await supabase
+      // Fetch custom settings (rates & pricing plans)
+      const { data: settings } = await supabase
         .from('global_settings')
-        .select('value')
-        .eq('key', 'commission_rates')
-        .maybeSingle();
-      if (ratesSet && ratesSet.value) {
-        try {
-          setCustomRates(JSON.parse(ratesSet.value));
-        } catch (e) {
-          console.error('Error parsing custom rates:', e);
-        }
+        .select('key, value')
+        .in('key', ['commission_rates', 'pricing_plans']);
+
+      if (settings) {
+        settings.forEach(s => {
+          if (s.key === 'commission_rates' && s.value) {
+            try {
+              setCustomRates(JSON.parse(s.value));
+            } catch (e) {
+              console.error('Error parsing custom rates:', e);
+            }
+          }
+          if (s.key === 'pricing_plans' && s.value) {
+            try {
+              setCustomPlans(JSON.parse(s.value));
+            } catch (e) {
+              console.error('Error parsing custom plans:', e);
+            }
+          }
+        });
       }
 
     } catch (err: any) {
@@ -115,12 +127,12 @@ export default function Clients() {
 
   // ─── Plan preset ───────────────────────────────────────────────────────────
   const handlePlanChange = (plan: PlanType) => {
-    const defaults = getPlanDefaults(plan);
+    const defaults = getPlanDefaults(plan, customPlans);
     setForm(f => ({
       ...f,
       plan_type: plan,
-      setup_fee: defaults.setup > 0 ? String(defaults.setup) : f.setup_fee,
-      mrr: defaults.mrr > 0 ? String(defaults.mrr) : f.mrr,
+      setup_fee: String(defaults.setup),
+      mrr: String(defaults.mrr),
     }));
   };
 
@@ -337,7 +349,7 @@ export default function Clients() {
         user_id: user.id,
         action: editingClientId
           ? `updated client details for: ${client.company_name}`
-          : `added client: ${client.company_name} (${getPlanLabel(form.plan_type)})`,
+          : `added client: ${client.company_name} (${getPlanLabel(form.plan_type, customPlans)})`,
       }).throwOnError();
 
       // 5. Reset & Cleanup
@@ -457,8 +469,8 @@ export default function Clients() {
                 <label className="text-sm font-medium text-accent">Pricing Plan *</label>
                 <select className="w-full h-10 px-3 rounded-xl border border-accent/40 bg-background text-sm focus:outline-none focus:border-accent"
                   value={form.plan_type} onChange={e => handlePlanChange(e.target.value as PlanType)}>
-                  <option value="minimum">Minimum Plan ($1,200 setup + $997/mo)</option>
-                  <option value="premium">Premium Plan ($3,000 upfront + $997/mo from month 4)</option>
+                  <option value="minimum">{getPlanLabel('minimum', customPlans)}</option>
+                  <option value="premium">{getPlanLabel('premium', customPlans)}</option>
                   <option value="custom">Custom Deal (Manual entry)</option>
                 </select>
               </div>

@@ -34,14 +34,14 @@ export default function Signup() {
 
       // 2. Create the user profile in public.users
       if (authData.user) {
-        const { error: profileError } = await supabase.from('users').insert({
+        const { error: profileError } = await supabase.from('users').upsert({
           id: authData.user.id,
           email,
           first_name: firstName,
           last_name: lastName,
           role: 'viewer', // default
           status: 'pending' // default
-        });
+        }, { onConflict: 'id' });
 
         if (profileError) throw profileError;
       }

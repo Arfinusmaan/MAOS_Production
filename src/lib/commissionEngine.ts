@@ -99,15 +99,33 @@ function r2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-export function getPlanDefaults(plan: PlanType) {
+export function getPlanDefaults(plan: PlanType, customPlans?: any) {
+  if (customPlans) {
+    if (plan === 'minimum') return { setup: Number(customPlans.minimum?.setup ?? 1200), mrr: Number(customPlans.minimum?.mrr ?? 997) };
+    if (plan === 'premium') return { setup: Number(customPlans.premium?.setup ?? 3000), mrr: Number(customPlans.premium?.mrr ?? 997) };
+  }
   if (plan === 'minimum') return { setup: 1200, mrr: 997 };
-  if (plan === 'premium') return { setup: 0, mrr: 1500 }; // MRR starts month 4
+  if (plan === 'premium') return { setup: 3000, mrr: 997 }; // MRR starts month 4
   return { setup: 0, mrr: 0 };
 }
 
-export function getPlanLabel(p: PlanType): string {
-  if (p === 'minimum') return 'Minimum ($1.2K setup + $997/mo)';
-  if (p === 'premium') return 'Premium (No setup + $1.5K/mo deferred)';
+export function getPlanLabel(p: PlanType, customPlans?: any): string {
+  if (customPlans) {
+    if (p === 'minimum') {
+      const name = customPlans.minimum?.name || 'Minimum Plan';
+      const setup = Number(customPlans.minimum?.setup ?? 1200);
+      const mrr = Number(customPlans.minimum?.mrr ?? 997);
+      return `${name} ($${setup.toLocaleString()} setup + $${mrr.toLocaleString()}/mo)`;
+    }
+    if (p === 'premium') {
+      const name = customPlans.premium?.name || 'Premium Plan';
+      const setup = Number(customPlans.premium?.setup ?? 3000);
+      const mrr = Number(customPlans.premium?.mrr ?? 997);
+      return `${name} ($${setup.toLocaleString()} upfront + $${mrr.toLocaleString()}/mo from month 4)`;
+    }
+  }
+  if (p === 'minimum') return 'Minimum Plan ($1,200 setup + $997/mo)';
+  if (p === 'premium') return 'Premium Plan ($3,000 upfront + $997/mo from month 4)';
   return 'Custom Plan';
 }
 

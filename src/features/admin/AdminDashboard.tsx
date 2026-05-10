@@ -25,6 +25,13 @@ export default function AdminDashboard() {
   const [dailyCallTarget, setDailyCallTarget] = useState(250);
   const [isUpdatingTarget, setIsUpdatingTarget] = useState(false);
 
+  // Pricing plans configuration settings
+  const [plans, setPlans] = useState<any>({
+    minimum: { name: 'Minimum Plan', setup: 1200, mrr: 997 },
+    premium: { name: 'Premium Plan', setup: 3000, mrr: 997 }
+  });
+  const [isUpdatingPlans, setIsUpdatingPlans] = useState(false);
+
   // Commission Rates Settings
   const [rates, setRates] = useState<any>({
     full_cycle_closer: { setup: 20, mrr: 20 },
@@ -121,6 +128,32 @@ export default function AdminDashboard() {
         }
       }
 
+      // 6. Fetch custom pricing plans
+      const { data: plansSet } = await supabase
+        .from('global_settings')
+        .select('value')
+        .eq('key', 'pricing_plans')
+        .maybeSingle();
+      if (plansSet && plansSet.value) {
+        try {
+          const parsed = JSON.parse(plansSet.value);
+          setPlans({
+            minimum: {
+              name: parsed.minimum?.name || 'Minimum Plan',
+              setup: parsed.minimum?.setup !== undefined ? Number(parsed.minimum.setup) : 1200,
+              mrr: parsed.minimum?.mrr !== undefined ? Number(parsed.minimum.mrr) : 997,
+            },
+            premium: {
+              name: parsed.premium?.name || 'Premium Plan',
+              setup: parsed.premium?.setup !== undefined ? Number(parsed.premium.setup) : 3000,
+              mrr: parsed.premium?.mrr !== undefined ? Number(parsed.premium.mrr) : 997,
+            }
+          });
+        } catch (e) {
+          console.error('Error parsing custom plans:', e);
+        }
+      }
+
     } catch (error) {
       console.error('Admin fetch error:', error);
       toast.error('Failed to load admin data');
@@ -188,6 +221,36 @@ export default function AdminDashboard() {
       toast.error('Failed to update commission rates: ' + err.message);
     } finally {
       setIsUpdatingRates(false);
+    }
+  };
+
+  const handleSavePlans = async () => {
+    try {
+      setIsUpdatingPlans(true);
+      const payload = {
+        minimum: {
+          name: plans.minimum.name,
+          setup: Number(plans.minimum.setup),
+          mrr: Number(plans.minimum.mrr)
+        },
+        premium: {
+          name: plans.premium.name,
+          setup: Number(plans.premium.setup),
+          mrr: Number(plans.premium.mrr)
+        }
+      };
+
+      const { error } = await supabase
+        .from('global_settings')
+        .upsert({ key: 'pricing_plans', value: JSON.stringify(payload) });
+
+      if (error) throw error;
+      toast.success('✅ Pricing plans saved successfully!');
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to save pricing plans: ' + err.message);
+    } finally {
+      setIsUpdatingPlans(false);
     }
   };
 
@@ -494,6 +557,77 @@ export default function AdminDashboard() {
                       onChange={e => setRates({ ...rates, split_pool: { ...rates.split_pool, mrr: Number(e.target.value) } })}
                       className="h-7 text-xs px-1.5 py-0 w-16" />
                     <span className="text-[10px] text-muted-foreground">%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Dynamic Pricing Plans Config */}
+            <div className="border-t border-border pt-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Pricing Plans Presets (Edit)
+                </h4>
+                <Button size="sm" onClick={handleSavePlans} disabled={isUpdatingPlans} className="h-7 text-xs px-3">
+                  {isUpdatingPlans ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                  Save Plans
+                </Button>
+              </div>
+
+              {/* Minimum Plan Preset */}
+              <div className="space-y-2 bg-muted/20 p-2.5 rounded-lg border border-border/50">
+                <p className="text-xs font-semibold text-accent">Minimum Plan Preset</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground min-w-[50px]">Label:</span>
+                    <Input type="text" value={plans.minimum.name}
+                      onChange={e => setPlans({ ...plans, minimum: { ...plans.minimum, name: e.target.value } })}
+                      className="h-7 text-xs px-1.5 py-0 w-full" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground min-w-[50px]">Setup:</span>
+                      <span className="text-[10px] text-muted-foreground">$</span>
+                      <Input type="number" min={0} value={plans.minimum.setup}
+                        onChange={e => setPlans({ ...plans, minimum: { ...plans.minimum, setup: Number(e.target.value) } })}
+                        className="h-7 text-xs px-1.5 py-0 w-full" />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground min-w-[30px]">MRR:</span>
+                      <span className="text-[10px] text-muted-foreground">$</span>
+                      <Input type="number" min={0} value={plans.minimum.mrr}
+                        onChange={e => setPlans({ ...plans, minimum: { ...plans.minimum, mrr: Number(e.target.value) } })}
+                        className="h-7 text-xs px-1.5 py-0 w-full" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Premium Plan Preset */}
+              <div className="space-y-2 bg-muted/20 p-2.5 rounded-lg border border-border/50">
+                <p className="text-xs font-semibold text-accent">Premium Plan Preset</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground min-w-[50px]">Label:</span>
+                    <Input type="text" value={plans.premium.name}
+                      onChange={e => setPlans({ ...plans, premium: { ...plans.premium, name: e.target.value } })}
+                      className="h-7 text-xs px-1.5 py-0 w-full" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground min-w-[50px]">Upfront:</span>
+                      <span className="text-[10px] text-muted-foreground">$</span>
+                      <Input type="number" min={0} value={plans.premium.setup}
+                        onChange={e => setPlans({ ...plans, premium: { ...plans.premium, setup: Number(e.target.value) } })}
+                        className="h-7 text-xs px-1.5 py-0 w-full" />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground min-w-[30px]">MRR:</span>
+                      <span className="text-[10px] text-muted-foreground">$</span>
+                      <Input type="number" min={0} value={plans.premium.mrr}
+                        onChange={e => setPlans({ ...plans, premium: { ...plans.premium, mrr: Number(e.target.value) } })}
+                        className="h-7 text-xs px-1.5 py-0 w-full" />
+                    </div>
                   </div>
                 </div>
               </div>
