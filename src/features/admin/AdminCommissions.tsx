@@ -42,16 +42,35 @@ export default function AdminCommissions() {
 
   useEffect(() => { fetch(); }, []);
 
-  // Active recurring MRR payouts list
-  const activeRecurring = commissions.filter(c => c.is_recurring && c.status === 'paid');
+  // Active recurring MRR payouts list (all deals marked as recurring)
+  const activeRecurring = commissions.filter(c => c.is_recurring);
   
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth(); // 0-11
+
   // Calculate total client MRR inflow & total teammate payout outflow
   let totalInflow = 0;
-  let totalOutflow = 0;
+  let totalMRROwed = 0; // total recurring commitment volume
+  let totalMRRPaidThisMonth = 0; // actually paid this month
+  let totalMRRPayableThisMonth = 0; // unpaid/due this month
   const seenClients = new Set();
   
   activeRecurring.forEach(c => {
-    totalOutflow += Number(c.amount) || 0;
+    const amt = Number(c.amount) || 0;
+    
+    // Check if paid in the current calendar month
+    const isPaidThisMonth = c.status === 'paid' && c.paid_at && (
+      new Date(c.paid_at).getFullYear() === currentYear &&
+      new Date(c.paid_at).getMonth() === currentMonth
+    );
+
+    totalMRROwed += amt;
+    if (isPaidThisMonth) {
+      totalMRRPaidThisMonth += amt;
+    } else {
+      totalMRRPayableThisMonth += amt;
+    }
+
     if (c.clients && !seenClients.has(c.client_id)) {
       seenClients.add(c.client_id);
       totalInflow += Number(c.clients.mrr) || 0;
@@ -67,12 +86,29 @@ export default function AdminCommissions() {
         userId: key,
         name: c._user ? `${c._user.first_name} ${c._user.last_name}` : 'Unknown Teammate',
         role: c._user?.role || '',
-        totalMRRPayout: 0,
+        totalMRROwed: 0,
+        paidThisMonth: 0,
+        payableThisMonth: 0,
         deals: []
       };
     }
-    teammatesMRR[key].totalMRRPayout += Number(c.amount) || 0;
-    teammatesMRR[key].deals.push(c);
+    
+    const amt = Number(c.amount) || 0;
+    const isPaidThisMonth = c.status === 'paid' && c.paid_at && (
+      new Date(c.paid_at).getFullYear() === currentYear &&
+      new Date(c.paid_at).getMonth() === currentMonth
+    );
+
+    teammatesMRR[key].totalMRROwed += amt;
+    if (isPaidThisMonth) {
+      teammatesMRR[key].paidThisMonth += amt;
+    } else {
+      teammatesMRR[key].payableThisMonth += amt;
+    }
+    teammatesMRR[key].deals.push({
+      ...c,
+      _isPaidThisMonth: isPaidThisMonth
+    });
   });
 
   // ─── Setup Fee Track Calculations ──────────────────────────────────────────
@@ -362,17 +398,24 @@ export default function AdminCommissions() {
                   <div className="space-y-2">
                     {Object.values(teammatesMRR).map((tm: any) => (
                       <div key={tm.userId} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-muted/5 border border-border/40 hover:bg-muted/15 transition-all">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-500 font-bold text-[10px] flex items-center justify-center border border-emerald-500/20">
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                          <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-500 font-bold text-[10px] flex items-center justify-center border border-emerald-500/20 shrink-0">
                             {tm.name[0]}
                           </div>
-                          <div>
-                            <span className="font-semibold text-foreground">{tm.name}</span>
-                            <span className="text-[9px] text-muted-foreground ml-2 capitalize">({tm.role.replace(/_/g, ' ')})</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-foreground truncate">{tm.name}</p>
+                            <p className="text-[9px] text-muted-foreground capitalize truncate">{tm.role.replace(/_/g, ' ')}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-foreground">${tm.totalMRRPayout.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo</span>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="text-right">
+                            <p className="font-bold text-foreground text-xs">${tm.totalMRROwed.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo</p>
+                            <p className="text-[9px] mt-0.5 space-x-1">
+                              <span className="text-emerald-500 font-medium">Paid: ${tm.paidThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              <span className="text-muted-foreground">·</span>
+                              <span className={tm.payableThisMonth > 0 ? "text-orange-500 font-bold" : "text-muted-foreground font-medium"}>Pay: ${tm.payableThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </p>
+                          </div>
                           <Button 
                             onClick={() => setSelectedTeammateMRR(tm)}
                             size="sm"
@@ -386,8 +429,8 @@ export default function AdminCommissions() {
                       </div>
                     ))}
                     <div className="flex justify-between items-center text-xs border-t border-border/40 pt-3 font-semibold mt-1">
-                      <span className="text-muted-foreground">Total MRR Team Payouts (z)</span>
-                      <span className="font-extrabold text-emerald-500 text-sm">${totalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo</span>
+                      <span className="text-muted-foreground">Total MRR Commitments (z)</span>
+                      <span className="font-extrabold text-emerald-500 text-sm">${totalMRROwed.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo</span>
                     </div>
                   </div>
                 )}
@@ -405,7 +448,7 @@ export default function AdminCommissions() {
                     <p className="text-[9px] text-muted-foreground mt-0.5">Retained monthly passive profit margin</p>
                   </div>
                   <span className="font-extrabold text-emerald-500 text-base">
-                    ${(totalInflow - totalOutflow).toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo
+                    ${(totalInflow - totalMRROwed).toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo
                   </span>
                 </div>
               </div>
@@ -450,9 +493,20 @@ export default function AdminCommissions() {
                           💼 {tx.commission_role?.replace(/_/g, ' ')}
                         </p>
                       </div>
-                      <span className="text-sm font-bold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
-                        +${Number(tx.amount).toFixed(2)}/mo
-                      </span>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <span className="text-sm font-bold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
+                          +${Number(tx.amount).toFixed(2)}/mo
+                        </span>
+                        {tx._isPaidThisMonth ? (
+                          <span className="text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/15">
+                            Paid This Month
+                          </span>
+                        ) : (
+                          <span className="text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded bg-orange-500/10 text-orange-500 border border-orange-500/15 animate-pulse">
+                            Payable (Unpaid)
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border/40 text-xs text-muted-foreground">
@@ -464,9 +518,20 @@ export default function AdminCommissions() {
                         <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                         <span>Plan Type: <strong className="text-foreground font-medium capitalize">{tx.clients?.plan_type || 'Custom'}</strong></span>
                       </div>
-                      <div className="col-span-2 flex items-center gap-1.5">
-                        <Check className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>Payout Billing Date: <strong className="text-foreground font-medium">{payDate ? payDate.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</strong></span>
+                      <div className="col-span-2 flex items-center justify-between gap-1.5 border-t border-border/30 pt-2 mt-1">
+                        <div className="flex items-center gap-1.5">
+                          <Check className={tx._isPaidThisMonth ? "w-3.5 h-3.5 text-emerald-500" : "w-3.5 h-3.5 text-muted-foreground"} />
+                          <span>Last Payment: <strong className="text-foreground font-medium">{payDate ? payDate.toLocaleDateString() : 'Never Paid'}</strong></span>
+                        </div>
+                        {!tx._isPaidThisMonth && (
+                          <Button 
+                            onClick={() => { markPaid(tx.id); setSelectedTeammateMRR(null); }}
+                            size="sm"
+                            className="h-7 text-[10px] uppercase font-bold gap-1 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white border-0 py-0 px-2.5 shrink-0"
+                          >
+                            <DollarSign className="w-3 h-3" /> Mark Paid
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -476,7 +541,7 @@ export default function AdminCommissions() {
 
             <div className="flex justify-between items-center mt-6 pt-4 border-t border-border">
               <span className="text-xs text-muted-foreground">
-                Total monthly commitments: <strong className="text-foreground font-bold">${selectedTeammateMRR.totalMRRPayout.toFixed(2)}/mo</strong>
+                Total monthly commitments: <strong className="text-foreground font-bold">${selectedTeammateMRR.totalMRROwed.toFixed(2)}/mo</strong>
               </span>
               <Button onClick={() => setSelectedTeammateMRR(null)} size="sm">
                 Close Details
