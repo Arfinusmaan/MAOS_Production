@@ -115,20 +115,48 @@ export default function AdminCommissions() {
   // Sum of setup_fee for all closed clients
   const totalSetupInflow = clients.filter(c => c.stage === 'Closed').reduce((sum, c) => sum + (Number(c.setup_fee) || 0), 0);
   
-  // All approved/paid setup or bonus commissions
-  const setupCommissions = commissions.filter(c => (c.type === 'setup' || c.type === 'setter_bonus') && (c.status === 'paid' || c.status === 'pending'));
+  // All setup or bonus commissions regardless of status (so we can show paid vs unpaid!)
+  const setupCommissions = commissions.filter(c => (c.type === 'setup' || c.type === 'setter_bonus'));
   const totalSetupOutflow = setupCommissions.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
   
+  let totalSetupPaid = 0;
+  let totalSetupOwed = 0;
+
   // Group setup commissions by teammate
-  const teammateSetupSummary: Record<string, { userId: string; name: string; role: string; totalSetupPayout: number }> = {};
+  const teammateSetupSummary: Record<string, { 
+    userId: string; 
+    name: string; 
+    role: string; 
+    totalSetupPayout: number; 
+    paidAmount: number; 
+    owedAmount: number; 
+  }> = {};
+
   setupCommissions.forEach(c => {
     const key = c.user_id;
     const name = c._user ? `${c._user.first_name} ${c._user.last_name}` : 'Unknown Teammate';
     const role = c._user?.role || '';
+    const amt = Number(c.amount) || 0;
+
     if (!teammateSetupSummary[key]) {
-      teammateSetupSummary[key] = { userId: key, name, role, totalSetupPayout: 0 };
+      teammateSetupSummary[key] = { 
+        userId: key, 
+        name, 
+        role, 
+        totalSetupPayout: 0, 
+        paidAmount: 0, 
+        owedAmount: 0 
+      };
     }
-    teammateSetupSummary[key].totalSetupPayout += Number(c.amount) || 0;
+
+    teammateSetupSummary[key].totalSetupPayout += amt;
+    if (c.status === 'paid') {
+      teammateSetupSummary[key].paidAmount += amt;
+      totalSetupPaid += amt;
+    } else {
+      teammateSetupSummary[key].owedAmount += amt;
+      totalSetupOwed += amt;
+    }
   });
 
   // Per-person approved payout summary (Unpaid)
@@ -332,16 +360,23 @@ export default function AdminCommissions() {
                   <div className="space-y-2">
                     {Object.values(teammateSetupSummary).map((tm: any) => (
                       <div key={tm.userId} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-muted/5 border border-border/40 hover:bg-muted/15 transition-all">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-6 h-6 rounded-full bg-orange-500/10 text-orange-500 font-bold text-[10px] flex items-center justify-center border border-orange-500/20">
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                          <div className="w-6 h-6 rounded-full bg-orange-500/10 text-orange-500 font-bold text-[10px] flex items-center justify-center border border-orange-500/20 shrink-0">
                             {tm.name[0]}
                           </div>
-                          <div>
-                            <span className="font-semibold text-foreground">{tm.name}</span>
-                            <span className="text-[9px] text-muted-foreground ml-2 capitalize">({tm.role.replace(/_/g, ' ')})</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-foreground truncate">{tm.name}</p>
+                            <p className="text-[9px] text-muted-foreground capitalize truncate">{tm.role.replace(/_/g, ' ')}</p>
                           </div>
                         </div>
-                        <span className="font-bold text-foreground">${tm.totalSetupPayout.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <div className="text-right shrink-0">
+                          <p className="font-bold text-foreground text-xs">${tm.totalSetupPayout.toLocaleString(undefined, { minimumFractionDigits: 2 })} total</p>
+                          <p className="text-[10px] mt-0.5 space-x-1">
+                            <span className="text-emerald-500 font-semibold">Already Paid: ${tm.paidAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="text-muted-foreground">·</span>
+                            <span className={tm.owedAmount > 0 ? "text-orange-500 font-extrabold" : "text-muted-foreground font-semibold"}>You Owe to Pay: ${tm.owedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </p>
+                        </div>
                       </div>
                     ))}
                     <div className="flex justify-between items-center text-xs border-t border-border/40 pt-3 font-semibold mt-1">
@@ -409,11 +444,11 @@ export default function AdminCommissions() {
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
                           <div className="text-right">
-                            <p className="font-bold text-foreground text-xs">${tm.totalMRROwed.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo</p>
-                            <p className="text-[9px] mt-0.5 space-x-1">
-                              <span className="text-emerald-500 font-medium">Paid: ${tm.paidThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <p className="font-bold text-foreground text-xs">${tm.totalMRROwed.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo total</p>
+                            <p className="text-[10px] mt-0.5 space-x-1">
+                              <span className="text-emerald-500 font-semibold">Already Paid: ${tm.paidThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                               <span className="text-muted-foreground">·</span>
-                              <span className={tm.payableThisMonth > 0 ? "text-orange-500 font-bold" : "text-muted-foreground font-medium"}>Pay: ${tm.payableThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              <span className={tm.payableThisMonth > 0 ? "text-orange-500 font-extrabold" : "text-muted-foreground font-semibold"}>You Owe to Pay: ${tm.payableThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </p>
                           </div>
                           <Button 
