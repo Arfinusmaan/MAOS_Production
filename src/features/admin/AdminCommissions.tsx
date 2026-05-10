@@ -58,10 +58,9 @@ export default function AdminCommissions() {
   activeRecurring.forEach(c => {
     const amt = Number(c.amount) || 0;
     
-    // Check if paid in the current calendar month
+    // Check if paid within the last 30 days (the specific billing cycle period)
     const isPaidThisMonth = c.status === 'paid' && c.paid_at && (
-      new Date(c.paid_at).getFullYear() === currentYear &&
-      new Date(c.paid_at).getMonth() === currentMonth
+      (new Date().getTime() - new Date(c.paid_at).getTime()) < 30 * 24 * 60 * 60 * 1000
     );
 
     totalMRROwed += amt;
@@ -95,8 +94,7 @@ export default function AdminCommissions() {
     
     const amt = Number(c.amount) || 0;
     const isPaidThisMonth = c.status === 'paid' && c.paid_at && (
-      new Date(c.paid_at).getFullYear() === currentYear &&
-      new Date(c.paid_at).getMonth() === currentMonth
+      (new Date().getTime() - new Date(c.paid_at).getTime()) < 30 * 24 * 60 * 60 * 1000
     );
 
     teammatesMRR[key].totalMRROwed += amt;
@@ -331,74 +329,74 @@ export default function AdminCommissions() {
           <DollarSign className="w-4 h-4 text-accent" /> Agency Revenue & Team Payouts Ledger
         </h2>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
           {/* ── TRACK 1: UPFRONT SETUP LEDGER ────────────────────────── */}
-          <Card className="border border-border bg-card/50 backdrop-blur-xl overflow-hidden flex flex-col hover:border-accent/20 transition-all shadow-lg hover:shadow-accent/5 duration-300">
-            <div className="p-5 border-b border-border/60 bg-muted/20 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center font-bold text-base shadow-sm">
+          <Card className="border border-border bg-card/40 backdrop-blur-xl overflow-hidden flex flex-col hover:border-accent/15 transition-all shadow-xl hover:shadow-accent/5 duration-300 rounded-2xl">
+            <div className="p-6 border-b border-border/40 bg-muted/15 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-orange-500/10 text-orange-500 flex items-center justify-center font-bold text-lg shadow-sm border border-orange-500/10">
                   ⚡
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm">Upfront Setup Track</h3>
-                  <p className="text-[10px] text-muted-foreground">One-time deal setup revenues & commissions</p>
+                  <h3 className="font-bold text-sm tracking-wide text-foreground">Upfront Setup Track</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">One-time deal setup revenues & commissions</p>
                 </div>
               </div>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-orange-500/10 text-orange-500">
+              <span className="text-[10px] uppercase font-bold tracking-wider px-3 py-1 rounded-full bg-orange-500/10 text-orange-500 border border-orange-500/10">
                 One-Time
               </span>
             </div>
 
-            <div className="p-5 flex-1 flex flex-col justify-between space-y-5">
+            <div className="p-6 flex-1 flex flex-col justify-between space-y-6">
               {/* Teammate payout list */}
               <div>
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Teammate Setup Share</p>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Teammate Setup Share</p>
                 {Object.keys(teammateSetupSummary).length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-5 text-center bg-muted/10 rounded-xl border border-border/40 border-dashed">No setup commissions paid yet.</p>
+                  <p className="text-xs text-muted-foreground py-6 text-center bg-muted/10 rounded-2xl border border-border/30 border-dashed">No setup commissions paid yet.</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {Object.values(teammateSetupSummary).map((tm: any) => (
-                      <div key={tm.userId} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-muted/5 border border-border/40 hover:bg-muted/15 transition-all">
-                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                          <div className="w-6 h-6 rounded-full bg-orange-500/10 text-orange-500 font-bold text-[10px] flex items-center justify-center border border-orange-500/20 shrink-0">
+                      <div key={tm.userId} className="flex items-center justify-between text-xs p-3.5 rounded-2xl bg-muted/10 border border-border/30 hover:bg-muted/20 transition-all">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-7 h-7 rounded-full bg-orange-500/10 text-orange-500 font-bold text-[11px] flex items-center justify-center border border-orange-500/20 shrink-0">
                             {tm.name[0]}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-foreground truncate">{tm.name}</p>
-                            <p className="text-[9px] text-muted-foreground capitalize truncate">{tm.role.replace(/_/g, ' ')}</p>
+                            <p className="font-semibold text-foreground text-sm truncate">{tm.name}</p>
+                            <p className="text-[10px] text-muted-foreground capitalize mt-0.5 truncate">{tm.role.replace(/_/g, ' ')}</p>
                           </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-bold text-foreground text-xs">${tm.totalSetupPayout.toLocaleString(undefined, { minimumFractionDigits: 2 })} total</p>
-                          <p className="text-[10px] mt-0.5 space-x-1">
-                            <span className="text-emerald-500 font-semibold">Already Paid: ${tm.paidAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                            <span className="text-muted-foreground">·</span>
-                            <span className={tm.owedAmount > 0 ? "text-orange-500 font-extrabold" : "text-muted-foreground font-semibold"}>You Owe to Pay: ${tm.owedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <div className="text-right shrink-0 pl-3">
+                          <p className="font-bold text-foreground text-sm">${tm.totalSetupPayout.toLocaleString(undefined, { minimumFractionDigits: 2 })} total</p>
+                          <p className="text-[10px] mt-1 space-x-1.5 font-medium">
+                            <span className="text-emerald-500">Already Paid: ${tm.paidAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="text-muted-foreground/50">·</span>
+                            <span className={tm.owedAmount > 0 ? "text-orange-500 font-bold" : "text-muted-foreground"}>You Owe to Pay: ${tm.owedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                           </p>
                         </div>
                       </div>
                     ))}
-                    <div className="flex justify-between items-center text-xs border-t border-border/40 pt-3 font-semibold mt-1">
+                    <div className="flex justify-between items-center text-xs border-t border-border/40 pt-4 font-semibold mt-2">
                       <span className="text-muted-foreground">Total Setup Team Payouts (z)</span>
-                      <span className="font-extrabold text-orange-500 text-sm">${totalSetupOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      <span className="font-bold text-orange-500 text-base">${totalSetupOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Agency setup financials */}
-              <div className="border-t border-border/40 pt-4 space-y-2.5">
+              <div className="border-t border-border/40 pt-6 space-y-3">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-muted-foreground font-semibold">Total Setup Revenue (a)</span>
                   <span className="font-bold text-foreground text-sm">${totalSetupInflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between items-center p-3 rounded-xl bg-orange-500/5 border border-orange-500/15">
+                <div className="flex justify-between items-center p-4 rounded-2xl bg-orange-500/[0.03] border border-orange-500/10">
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Net Setup Profit (b)</p>
-                    <p className="text-[9px] text-muted-foreground mt-0.5">Retained profit after setup commissions</p>
+                    <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider">Net Setup Profit (b)</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Retained profit after setup commissions</p>
                   </div>
-                  <span className="font-extrabold text-orange-500 text-base">
+                  <span className="font-extrabold text-orange-500 text-lg">
                     ${(totalSetupInflow - totalSetupOutflow).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -407,82 +405,82 @@ export default function AdminCommissions() {
           </Card>
 
           {/* ── TRACK 2: RECURRING MRR LEDGER ────────────────────────── */}
-          <Card className="border border-border bg-card/50 backdrop-blur-xl overflow-hidden flex flex-col hover:border-accent/20 transition-all shadow-lg hover:shadow-accent/5 duration-300">
-            <div className="p-5 border-b border-border/60 bg-muted/20 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-base shadow-sm">
+          <Card className="border border-border bg-card/40 backdrop-blur-xl overflow-hidden flex flex-col hover:border-accent/15 transition-all shadow-xl hover:shadow-accent/5 duration-300 rounded-2xl">
+            <div className="p-6 border-b border-border/40 bg-muted/15 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold text-lg shadow-sm border border-emerald-500/10">
                   🔄
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm">Recurring MRR Track</h3>
-                  <p className="text-[10px] text-muted-foreground">Active client MRR revenues & teammate payouts</p>
+                  <h3 className="font-bold text-sm tracking-wide text-foreground">Recurring MRR Track</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Active client MRR revenues & teammate payouts</p>
                 </div>
               </div>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">
+              <span className="text-[10px] uppercase font-bold tracking-wider px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/10">
                 Monthly
               </span>
             </div>
 
-            <div className="p-5 flex-1 flex flex-col justify-between space-y-5">
+            <div className="p-6 flex-1 flex flex-col justify-between space-y-6">
               {/* Teammate payout list */}
               <div>
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Teammate MRR Share</p>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Teammate MRR Share</p>
                 {Object.keys(teammatesMRR).length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-5 text-center bg-muted/10 rounded-xl border border-border/40 border-dashed">No active MRR payouts.</p>
+                  <p className="text-xs text-muted-foreground py-6 text-center bg-muted/10 rounded-2xl border border-border/30 border-dashed">No active MRR payouts.</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {Object.values(teammatesMRR).map((tm: any) => (
-                      <div key={tm.userId} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-muted/5 border border-border/40 hover:bg-muted/15 transition-all">
-                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                          <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-500 font-bold text-[10px] flex items-center justify-center border border-emerald-500/20 shrink-0">
+                      <div key={tm.userId} className="flex items-center justify-between text-xs p-3.5 rounded-2xl bg-muted/10 border border-border/30 hover:bg-muted/20 transition-all">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-500 font-bold text-[11px] flex items-center justify-center border border-emerald-500/20 shrink-0">
                             {tm.name[0]}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-foreground truncate">{tm.name}</p>
-                            <p className="text-[9px] text-muted-foreground capitalize truncate">{tm.role.replace(/_/g, ' ')}</p>
+                            <p className="font-semibold text-foreground text-sm truncate">{tm.name}</p>
+                            <p className="text-[10px] text-muted-foreground capitalize mt-0.5 truncate">{tm.role.replace(/_/g, ' ')}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-3 shrink-0 pl-3">
                           <div className="text-right">
-                            <p className="font-bold text-foreground text-xs">${tm.totalMRROwed.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo total</p>
-                            <p className="text-[10px] mt-0.5 space-x-1">
-                              <span className="text-emerald-500 font-semibold">Already Paid: ${tm.paidThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                              <span className="text-muted-foreground">·</span>
-                              <span className={tm.payableThisMonth > 0 ? "text-orange-500 font-extrabold" : "text-muted-foreground font-semibold"}>You Owe to Pay: ${tm.payableThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <p className="font-bold text-foreground text-sm">${tm.totalMRROwed.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo total</p>
+                            <p className="text-[10px] mt-1 space-x-1.5 font-medium">
+                              <span className="text-emerald-500">Already Paid: ${tm.paidThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              <span className="text-muted-foreground/50">·</span>
+                              <span className={tm.payableThisMonth > 0 ? "text-orange-500 font-bold" : "text-muted-foreground"}>You Owe to Pay: ${tm.payableThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </p>
                           </div>
                           <Button 
                             onClick={() => setSelectedTeammateMRR(tm)}
                             size="sm"
                             variant="ghost"
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-accent hover:bg-accent/10 rounded-xl transition-all border border-transparent hover:border-accent/10"
                             title="View Payout Details"
                           >
-                            <Eye className="w-3.5 h-3.5" />
+                            <Eye className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
                     ))}
-                    <div className="flex justify-between items-center text-xs border-t border-border/40 pt-3 font-semibold mt-1">
+                    <div className="flex justify-between items-center text-xs border-t border-border/40 pt-4 font-semibold mt-2">
                       <span className="text-muted-foreground">Total MRR Commitments (z)</span>
-                      <span className="font-extrabold text-emerald-500 text-sm">${totalMRROwed.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo</span>
+                      <span className="font-bold text-emerald-500 text-base">${totalMRROwed.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo</span>
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Agency MRR financials */}
-              <div className="border-t border-border/40 pt-4 space-y-2.5">
+              <div className="border-t border-border/40 pt-6 space-y-3">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-muted-foreground font-semibold">Total Client MRR Revenue (a)</span>
                   <span className="font-bold text-foreground text-sm">${totalInflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo</span>
                 </div>
-                <div className="flex justify-between items-center p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+                <div className="flex justify-between items-center p-4 rounded-2xl bg-emerald-500/[0.03] border border-emerald-500/10">
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Net Recurring Profit (b)</p>
-                    <p className="text-[9px] text-muted-foreground mt-0.5">Retained monthly passive profit margin</p>
+                    <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider">Net Recurring Profit (b)</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Retained monthly passive profit margin</p>
                   </div>
-                  <span className="font-extrabold text-emerald-500 text-base">
+                  <span className="font-extrabold text-emerald-500 text-lg">
                     ${(totalInflow - totalMRROwed).toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo
                   </span>
                 </div>
