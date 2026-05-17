@@ -399,16 +399,18 @@ export default function DialerHub() {
           >
             Manifests
           </button>
-          <button 
-            onClick={() => setView('reports')} 
-            className={`h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center ${
-              view === 'reports' 
-                ? 'bg-primary/10 text-primary border border-primary/20 shadow-md shadow-primary/5' 
-                : 'text-muted-foreground hover:text-foreground border border-transparent'
-            }`}
-          >
-            Intelligence
-          </button>
+          {isAdmin && (
+            <button 
+              onClick={() => setView('reports')} 
+              className={`h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center ${
+                view === 'reports' 
+                  ? 'bg-primary/10 text-primary border border-primary/20 shadow-md shadow-primary/5' 
+                  : 'text-muted-foreground hover:text-foreground border border-transparent'
+              }`}
+            >
+              Intelligence
+            </button>
+          )}
           {isAdmin && (
             <button 
               onClick={() => setView('lines')} 

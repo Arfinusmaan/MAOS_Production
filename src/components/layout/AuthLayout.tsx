@@ -9,12 +9,11 @@ export default function AuthLayout() {
           <img 
             src="/More_Appts_WO_BG.png" 
             alt="MAOS Logo" 
-            className="h-20 object-contain mb-4 select-none transition-all hover:scale-105 duration-300" 
+            className="h-12 object-contain mb-4 select-none" 
           />
-          <h1 className="text-3xl font-black tracking-tighter text-foreground uppercase select-none">
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase select-none">
             MAOS <span className="text-primary italic">Elite</span>
           </h1>
-          <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mt-2">More Appointments Operating System</p>
         </div>
         <Outlet />
       </div>

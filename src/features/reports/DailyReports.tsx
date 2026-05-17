@@ -410,40 +410,36 @@ function TeammateDailyReportView() {
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={handleSave}>
-              <div className="p-3.5 mb-4 rounded-xl border border-accent/20 bg-accent/5 text-xs text-foreground flex items-center gap-2.5 select-none">
-                <Target className="w-4 h-4 text-accent shrink-0" />
-                <span>📊 Activity metrics are secured and recorded automatically in real-time by your desktop Elite softphone. Manual modification is disabled.</span>
-              </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                     <PhoneCall className="w-3 h-3" /> Calls Made
                   </label>
-                  <Input type="number" value={report.calls_made} readOnly disabled className="bg-muted/40 cursor-not-allowed text-muted-foreground font-semibold border-none" />
+                  <Input type="number" value={report.calls_made} onChange={e => setReport({ ...report, calls_made: Number(e.target.value) })} min={0} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Voicemails</label>
-                  <Input type="number" value={report.voicemails} readOnly disabled className="bg-muted/40 cursor-not-allowed text-muted-foreground font-semibold border-none" />
+                  <Input type="number" value={report.voicemails} onChange={e => setReport({ ...report, voicemails: Number(e.target.value) })} min={0} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pickups</label>
-                  <Input type="number" value={report.pickups} readOnly disabled className="bg-muted/40 cursor-not-allowed text-muted-foreground font-semibold border-none" />
+                  <Input type="number" value={report.pickups} onChange={e => setReport({ ...report, pickups: Number(e.target.value) })} min={0} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                     <Calendar className="w-3 h-3" /> Meetings Booked
                   </label>
-                  <Input type="number" value={report.meetings_booked} readOnly disabled className="bg-muted/40 cursor-not-allowed text-muted-foreground font-semibold border-none" />
+                  <Input type="number" value={report.meetings_booked} onChange={e => setReport({ ...report, meetings_booked: Number(e.target.value) })} min={0} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Shows</label>
-                  <Input type="number" value={report.shows} readOnly disabled className="bg-muted/40 cursor-not-allowed text-muted-foreground font-semibold border-none" />
+                  <Input type="number" value={report.shows} onChange={e => setReport({ ...report, shows: Number(e.target.value) })} min={0} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                     <CheckCircle className="w-3 h-3 text-emerald-500" /> Closings
                   </label>
-                  <Input type="number" value={report.closings} readOnly disabled className="bg-muted/40 cursor-not-allowed text-muted-foreground font-semibold border-none" />
+                  <Input type="number" value={report.closings} onChange={e => setReport({ ...report, closings: Number(e.target.value) })} min={0} />
                 </div>
               </div>
               <div className="space-y-2 pt-2">
