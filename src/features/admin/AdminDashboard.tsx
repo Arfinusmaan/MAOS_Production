@@ -19,6 +19,7 @@ export default function AdminDashboard() {
   });
   const [todayReports, setTodayReports] = useState<any[]>([]);
   const [activeTeammates, setActiveTeammates] = useState<any[]>([]);
+  const [leadRequests, setLeadRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Global settings
@@ -158,6 +159,13 @@ export default function AdminDashboard() {
       console.error('Admin fetch error:', error);
       toast.error('Failed to load admin data');
     } finally {
+      // 7. Fetch Lead Requests
+      const { data: leadReqs } = await supabase
+        .from('lead_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (leadReqs) setLeadRequests(leadReqs);
+
       setIsLoading(false);
     }
   };
@@ -258,6 +266,20 @@ export default function AdminDashboard() {
     const url = `${window.location.origin}/signup`;
     navigator.clipboard.writeText(url);
     toast.success('Signup link copied to clipboard!');
+  };
+
+  const handleLeadRequestStatus = async (id: string, status: 'assigned' | 'dismissed') => {
+    try {
+      const { error } = await supabase
+        .from('lead_requests')
+        .update({ status })
+        .eq('id', id);
+      if (error) throw error;
+      toast.success(`Mission request marked as ${status}`);
+      fetchData();
+    } catch (err: any) {
+      toast.error('Failed to update mission request: ' + err.message);
+    }
   };
 
   if (isLoading) {
@@ -631,6 +653,61 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Lead Requests Tracking */}
+        <Card className="border border-border lg:col-span-3">
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                Active Mission Requests
+              </CardTitle>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Awaiting Deployment: {leadRequests.filter(r => r.status === 'pending').length}</p>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {leadRequests.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground text-sm italic border border-dashed border-border rounded-2xl">
+                  No mission requests pending from the field.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {leadRequests.map(req => (
+                    <div key={req.id} className={`p-6 bg-card border rounded-[32px] space-y-4 transition-all hover:border-primary/20 ${req.status === 'assigned' ? 'opacity-50' : ''}`}>
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Field Agent</p>
+                          <h4 className="font-bold text-foreground text-lg tracking-tight italic">{req.agent_name}</h4>
+                          <p className="text-xs text-muted-foreground">{req.agent_email}</p>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border ${
+                          req.status === 'pending' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' :
+                          req.status === 'assigned' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                          'bg-white/5 text-muted-foreground border-white/10'
+                        }`}>
+                          {req.status}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center pt-4 border-t border-border">
+                        <p className="text-[10px] font-mono text-muted-foreground">
+                          Requested {new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        {req.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="h-8 text-[9px] font-black uppercase tracking-widest rounded-lg" onClick={() => handleLeadRequestStatus(req.id, 'dismissed')}>Dismiss</Button>
+                            <Button size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white border-none" onClick={() => handleLeadRequestStatus(req.id, 'assigned')}>Deploy Mission</Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

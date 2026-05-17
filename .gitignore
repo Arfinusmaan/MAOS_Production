@@ -27,3 +27,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Dialer compilation directories
+dialer-elite/release/
+dialer-elite/dist/

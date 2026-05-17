@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-foreground overflow-hidden select-none;
+    font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+}
+
+.elite-card {
+  @apply bg-card border border-border rounded-xl shadow-elite backdrop-blur-3xl;
+}
+
+.btn-elite {
+  @apply px-6 py-3 bg-white/5 border border-white/10 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all hover:bg-white/10 active:scale-95;
+}

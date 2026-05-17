@@ -14,23 +14,16 @@ import {
   Trophy,
   ShieldAlert,
   ShieldCheck,
-  X
+  X,
+  PhoneCall
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/lib/supabase';
 
-const BASE_SIDEBAR_ITEMS = [
-  { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
-  { icon: Users, label: 'Clients', href: '/clients' },
-  { icon: Target, label: 'Daily Reports', href: '/reports' },
-  { icon: DollarSign, label: 'Commissions', href: '/commissions' },
-  { icon: Trophy, label: 'Leaderboard', href: '/leaderboard' },
-  { icon: Settings, label: 'Settings', href: '/settings' },
-];
+
 
 const ADMIN_SIDEBAR_ITEMS = [
-  { icon: ShieldCheck, label: 'Control Center', href: '/admin' },
   { icon: ShieldAlert, label: 'Team Payouts', href: '/admin/commissions' },
   { icon: Users, label: 'Manage Users', href: '/admin/users' },
 ];
@@ -105,15 +98,21 @@ export default function DashboardLayout() {
     navigate('/login');
   };
 
-  // Add Admin section if user is admin
-  const sidebarItems = isAdmin 
-    ? [
-        ...BASE_SIDEBAR_ITEMS,
-        { icon: ShieldCheck, label: 'Control Center', href: '/admin' },
-        { icon: ShieldAlert, label: 'Team Payouts', href: '/admin/commissions' },
-        { icon: Users, label: 'Manage Users', href: '/admin/users' },
-      ]
-    : BASE_SIDEBAR_ITEMS;
+  // Dynamic Sidebar items based on role
+  const sidebarItems = [
+    { 
+      icon: isAdmin ? ShieldCheck : LayoutDashboard, 
+      label: isAdmin ? 'Master Control' : 'Dashboard', 
+      href: isAdmin ? '/admin' : '/dashboard' 
+    },
+    { icon: Users, label: 'Clients', href: '/clients' },
+    { icon: Target, label: 'Daily Reports', href: '/reports' },
+    { icon: DollarSign, label: 'Commissions', href: '/commissions' },
+    { icon: PhoneCall, label: 'Dialer Hub', href: '/dialer' },
+    { icon: Trophy, label: 'Leaderboard', href: '/leaderboard' },
+    { icon: Settings, label: 'Settings', href: '/settings' },
+    ...(isAdmin ? ADMIN_SIDEBAR_ITEMS : [])
+  ];
 
   return (
     <div className="min-h-screen bg-surface flex flex-col md:flex-row">

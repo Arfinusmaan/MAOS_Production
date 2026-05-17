@@ -23,6 +23,7 @@ import Settings from './features/settings/Settings';
 import AdminUsers from './features/admin/AdminUsers';
 import AdminDashboard from './features/admin/AdminDashboard';
 import AdminCommissions from './features/admin/AdminCommissions';
+import DialerHub from './features/dialer/DialerHub';
 
 // Route Guards
 const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode, requiredRole?: string }) => {
@@ -36,6 +37,12 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode,
   }
   
   return <>{children}</>;
+};
+
+const LandingRedirect = () => {
+  const { profile } = useAuthStore();
+  if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
+  return <Navigate to="/dashboard" replace />;
 };
 
 import CommandPalette from './components/ui/CommandPalette';
@@ -65,13 +72,14 @@ function App() {
             <DashboardLayout />
           </ProtectedRoute>
         }>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<LandingRedirect />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/clients/:id" element={<ClientDetail />} />
           <Route path="/reports" element={<DailyReports />} />
           <Route path="/commissions" element={<Commissions />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/dialer" element={<DialerHub />} />
           <Route path="/settings" element={<Settings />} />
           
           <Route path="/admin" element={
