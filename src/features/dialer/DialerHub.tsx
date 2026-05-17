@@ -89,7 +89,7 @@ export default function DialerHub() {
       setCampaigns(camps || []);
     }
     const { data: lines } = await supabase.from('voip_lines').select('*').order('created_at', { ascending: false });
-    const { data: reps } = await supabase.from('daily_reports').select('*').order('date', { ascending: false });
+    const { data: reps } = await supabase.from('daily_reports').select('*, users(first_name, last_name, email)').order('date', { ascending: false });
     
     setVoipLines(lines || []);
     setDailyReports(reps || []);
@@ -426,6 +426,23 @@ export default function DialerHub() {
                 Download Now
               </button>
             </div>
+            {/* Request Leads Card */}
+            <div className="p-8 bg-card border border-border rounded-3xl space-y-6">
+              <div className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-500">
+                <Send className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Leads finished?</p>
+                <h4 className="font-bold text-foreground italic">Request Queue</h4>
+              </div>
+              <button 
+                onClick={() => setShowLeadRequestConfirm(true)}
+                className="w-full py-3 bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-600 shadow-lg shadow-orange-500/20 transition-all"
+              >
+                Request Leads
+              </button>
+            </div>
+
             <div className="p-8 bg-emerald-500/5 border border-emerald-500/10 rounded-3xl space-y-4">
               <ShieldCheck className="w-5 h-5 text-emerald-500" />
               <p className="text-[11px] text-muted-foreground leading-relaxed italic uppercase font-bold tracking-tighter">"Your performance today is driving the mission. Stay focused."</p>
@@ -525,20 +542,28 @@ export default function DialerHub() {
               <div className="grid grid-cols-5 gap-4 px-6 py-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest border-b border-border">
                 <span>Agent</span><span>Date</span><span>Calls</span><span>Booked</span><span>Status</span>
               </div>
-              {dailyReports.map(report => (
-                <div key={report.id} className="grid grid-cols-5 gap-4 px-6 py-5 bg-card border border-border rounded-2xl items-center hover:border-primary/20 transition-all">
-                  <div>
-                    <p className="text-sm font-bold text-foreground">{report.agent_name}</p>
-                    <p className="text-[9px] text-muted-foreground">{report.agent_email}</p>
+              {dailyReports.map(report => {
+                const agentName = report.users ? `${report.users.first_name} ${report.users.last_name}` : 'Unknown Agent';
+                const agentEmail = report.users?.email || '—';
+                const calls = report.calls_made ?? 0;
+                const booked = report.meetings_booked ?? 0;
+                return (
+                  <div key={report.id} className="grid grid-cols-5 gap-4 px-6 py-5 bg-card border border-border rounded-2xl items-center hover:border-primary/20 transition-all">
+                    <div>
+                      <p className="text-sm font-bold text-foreground">{agentName}</p>
+                      <p className="text-[9px] text-muted-foreground">{agentEmail}</p>
+                    </div>
+                    <p className="text-sm font-mono text-muted-foreground">
+                      {new Date(report.date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </p>
+                    <p className="text-2xl font-bold tracking-tighter">{calls}</p>
+                    <p className="text-2xl font-bold text-emerald-500 tracking-tighter">{booked}</p>
+                    <span className="px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest w-fit bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                      Done
+                    </span>
                   </div>
-                  <p className="text-sm font-mono text-muted-foreground">{report.report_date}</p>
-                  <p className="text-2xl font-bold tracking-tighter">{report.total_calls}</p>
-                  <p className="text-2xl font-bold text-emerald-500 tracking-tighter">{report.total_booked}</p>
-                  <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest w-fit ${
-                    report.status === 'finished' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-primary/10 text-primary border border-primary/20'
-                  }`}>{report.status === 'finished' ? 'Done' : 'Active'}</span>
-                </div>
-              ))}
+                );
+              })}
               {dailyReports.length === 0 && (
                 <div className="text-center py-20 text-muted-foreground text-sm">No reports yet. Reports appear here when agents click "Done For Today".</div>
               )}

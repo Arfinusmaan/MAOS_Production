@@ -118,11 +118,13 @@ export default function DashboardLayout() {
     <div className="min-h-screen bg-surface flex flex-col md:flex-row">
       {/* Sidebar Desktop */}
       <aside className="hidden md:flex flex-col w-64 border-r border-border bg-background p-4 h-screen sticky top-0">
-        <div className="flex items-center gap-2 px-2 mb-8 mt-4">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="font-bold text-primary-foreground text-sm">M</span>
-          </div>
-          <span className="font-semibold text-lg tracking-tight">MAOS</span>
+        <div className="flex items-center gap-3 px-2 mb-8 mt-4 select-none">
+          <img 
+            src="/More_Appts_WO_BG.png" 
+            alt="MAOS Logo" 
+            className="h-9 w-9 object-contain" 
+          />
+          <span className="font-semibold text-lg tracking-tight text-foreground">MAOS</span>
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto custom-scrollbar">
