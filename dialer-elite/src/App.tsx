@@ -558,25 +558,6 @@ export default function App() {
     stopRinging();
     setRingingTime(0);
 
-    const busyCodes = ['Line Engaged', 'No Answer', 'Timeout'];
-    const shouldRedial = busyCodes.some(c => reason.includes(c));
-
-    if (shouldRedial && redialCount < MAX_REDIALS && currentLeadRef.current) {
-      setRedialCount(prev => prev + 1);
-      setStatus('calling'); 
-      setTelemetry(prev => [
-        `[REDIAL] ${reason} — Retry ${redialCount + 1}/${MAX_REDIALS} in 10s`,
-        ...prev
-      ].slice(0, 30));
-      toast.warning(`Busy — Retrying in 10s (${redialCount + 1}/${MAX_REDIALS})`);
-
-      if (redialTimerRef.current) clearTimeout(redialTimerRef.current);
-      redialTimerRef.current = setTimeout(() => {
-        handleInitiateCall();
-      }, REDIAL_DELAY);
-      return;
-    }
-
     clearTimeout(redialTimerRef.current);
     setRedialCount(0);
     setStatus('post-call');
