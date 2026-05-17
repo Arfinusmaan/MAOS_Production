@@ -135,6 +135,7 @@ export default function App() {
   const speakerLevelCounterRef = useRef(0);
   const [showLeadsList, setShowLeadsList] = useState(false);
   const [leadsListSearch, setLeadsListSearch] = useState('');
+  const [manifestPage, setManifestPage] = useState(0);
   
   // Hardware
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
@@ -268,6 +269,15 @@ export default function App() {
       notesRef.current = '';
     }
   }, [currentLead]);
+
+  // Load call history records when history view is selected
+  useEffect(() => {
+    if (view === 'history') {
+      getCallHistory().then(records => {
+        setHistoryRecords(records || []);
+      }).catch(err => console.error('[GET_HISTORY_ERR]', err));
+    }
+  }, [view]);
 
   useEffect(() => {
     checkSession();
@@ -634,22 +644,38 @@ export default function App() {
       if (campaign) {
         setCurrentCampaign(campaign);
         
-        // Fetch Leads for this campaign (uncalled first)
-        const { data: leads, error: leadsErr } = await supabase
-          .from('leads')
-          .select('*')
-          .eq('campaign_id', campaign.id)
-          .is('last_called_at', null)
-          .order('id', { ascending: true });
+        // Fetch Leads in batches of 1000 to bypass Supabase's default max-rows cap!
+        const fetchAllCampaignLeads = async (uncalledOnly: boolean) => {
+          let results: any[] = [];
+          let page = 0;
+          const pageSize = 1000;
+          while (true) {
+            let query = supabase
+              .from('leads')
+              .select(uncalledOnly ? '*' : 'id, first_name, company_name, phone, email, status, last_called_at')
+              .eq('campaign_id', campaign.id)
+              .order('id', { ascending: true })
+              .range(page * pageSize, (page + 1) * pageSize - 1);
+            
+            if (uncalledOnly) {
+              query = query.is('last_called_at', null);
+            }
+            
+            const { data, error } = await query;
+            if (error) {
+              console.error('[BATCH_FETCH_ERR]', error);
+              break;
+            }
+            if (!data || data.length === 0) break;
+            results = [...results, ...data];
+            if (data.length < pageSize) break;
+            page++;
+          }
+          return results;
+        };
 
-        if (leadsErr) console.error('[LEADS_ERR]', leadsErr.message);
-
-        // Also load full manifest
-        const { data: allLeadsData } = await supabase
-          .from('leads')
-          .select('id, first_name, phone, status, last_called_at')
-          .eq('campaign_id', campaign.id)
-          .order('id', { ascending: true });
+        const leads = await fetchAllCampaignLeads(true);
+        const allLeadsData = await fetchAllCampaignLeads(false);
         setAllLeads(allLeadsData || []);
 
         if (leads && leads.length > 0) {
@@ -1122,11 +1148,28 @@ export default function App() {
           <button onClick={endMission} className="px-4 py-1.5 bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all border border-emerald-500/20">
             Done For Today
           </button>
-          <div className="flex gap-1 ml-2">
-            <button onClick={() => setView(view === 'mission' ? 'manual' : 'mission')} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${view === 'manual' ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' : 'bg-white/5 text-silver/40 border-white/10 hover:bg-white/10'}`}>
-              {view === 'manual' ? 'Back to Mission' : 'Direct Dial'}
+          <div className="flex bg-white/[0.02] border border-white/5 rounded-xl p-0.5 ml-2">
+            <button 
+              onClick={() => setView('mission')} 
+              className={`px-4 py-1.5 rounded-[10px] text-[8px] font-black uppercase tracking-widest transition-all ${view === 'mission' ? 'bg-primary text-white border border-primary/20 shadow-lg shadow-primary/20' : 'text-silver/40 hover:text-white/60'}`}
+            >
+              Mission
             </button>
-            <div className="w-px h-6 bg-white/5 mx-2" />
+            <button 
+              onClick={() => setView('manual')} 
+              className={`px-4 py-1.5 rounded-[10px] text-[8px] font-black uppercase tracking-widest transition-all ${view === 'manual' ? 'bg-primary text-white border border-primary/20 shadow-lg shadow-primary/20' : 'text-silver/40 hover:text-white/60'}`}
+            >
+              Manual
+            </button>
+            <button 
+              onClick={() => setView('history')} 
+              className={`px-4 py-1.5 rounded-[10px] text-[8px] font-black uppercase tracking-widest transition-all ${view === 'history' ? 'bg-primary text-white border border-primary/20 shadow-lg shadow-primary/20' : 'text-silver/40 hover:text-white/60'}`}
+            >
+              History
+            </button>
+          </div>
+          <div className="w-px h-6 bg-white/5 mx-2" />
+          <div className="flex gap-1">
             <button onClick={() => window.electronAPI.minimize()} className="p-1.5 text-silver hover:text-white"><Minus className="w-4 h-4" /></button>
             <button onClick={() => window.electronAPI.close()} className="p-1.5 text-silver hover:text-red-500"><CloseIcon className="w-4 h-4" /></button>
           </div>
@@ -1240,6 +1283,83 @@ export default function App() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          </section>
+        ) : view === 'history' ? (
+          // BEAUTIFUL STUNNING CALL HISTORY VIEW!
+          <section className="flex-1 flex flex-col p-12 bg-[#050505] overflow-y-auto custom-scrollbar">
+            <div className="flex justify-between items-center mb-8 flex-shrink-0">
+              <div>
+                <h2 className="text-3xl font-bold tracking-tighter uppercase italic text-white">Call Log Repository</h2>
+                <p className="text-[10px] font-black text-silver/40 uppercase tracking-[0.2em] mt-1">Archived Telemetry Logs</p>
+              </div>
+              <button 
+                onClick={async () => {
+                  const records = await getCallHistory();
+                  setHistoryRecords(records || []);
+                  toast.success("Logs Refreshed");
+                }} 
+                className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+              >
+                Refresh Logs
+              </button>
+            </div>
+            
+            <div className="flex-grow bg-white/[0.01] border border-white/5 rounded-[32px] overflow-hidden flex flex-col shadow-2xl pr-2 select-text selection:bg-accent/30 min-h-[300px]">
+              {/* Header */}
+              <div className="grid grid-cols-12 gap-4 px-8 py-4 border-b border-white/5 text-[9px] font-black text-silver/40 uppercase tracking-widest bg-black/20 flex-shrink-0">
+                <span className="col-span-1">#</span>
+                <span className="col-span-3">Entity / Target</span>
+                <span className="col-span-2">Direction</span>
+                <span className="col-span-3">Disposition</span>
+                <span className="col-span-2">Duration</span>
+                <span className="col-span-1 text-right">Time</span>
+              </div>
+              
+              {/* Rows */}
+              <div className="flex-grow overflow-y-auto custom-scrollbar divide-y divide-white/[0.02]">
+                {historyRecords.length === 0 ? (
+                  <div className="text-center py-20 text-silver/20 text-sm font-bold uppercase tracking-widest italic">No archived call history records found</div>
+                ) : (
+                  historyRecords.map((record, index) => {
+                    const date = new Date(record.timestamp);
+                    const formattedDate = date.toLocaleDateString([], { day: '2-digit', month: 'short' });
+                    const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    
+                    const directionColors = record.direction === 'inbound' 
+                      ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' 
+                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                      
+                    const dispositionColors = record.disposition === 'booked'
+                      ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                      : record.disposition === 'not interested'
+                      ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                      : 'bg-white/5 text-silver/40 border-white/10';
+
+                    return (
+                      <div key={record.id || index} className="grid grid-cols-12 gap-4 px-8 py-4 items-center hover:bg-white/[0.02] transition-colors text-sm text-silver/80">
+                        <span className="col-span-1 text-xs font-mono text-silver/20">{index + 1}</span>
+                        <span className="col-span-3 font-mono font-bold text-white tracking-tight">{record.callerId}</span>
+                        <span className="col-span-2">
+                          <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider border ${directionColors}`}>
+                            {record.direction}
+                          </span>
+                        </span>
+                        <span className="col-span-3">
+                          <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider border ${dispositionColors}`}>
+                            {record.disposition || 'no answer'}
+                          </span>
+                        </span>
+                        <span className="col-span-2 font-mono text-xs text-white/50">{record.duration ? `${record.duration}s` : '—'}</span>
+                        <span className="col-span-1 text-right font-mono text-[10px] text-silver/30 leading-none">
+                          <div>{formattedTime}</div>
+                          <div className="mt-1">{formattedDate}</div>
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </section>
@@ -1662,63 +1782,156 @@ export default function App() {
             initial={{ opacity: 0, x: 100 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 100 }}
-            className="fixed inset-0 z-[100] bg-[#050505]/95 backdrop-blur-2xl flex flex-col p-12"
+            className="fixed inset-0 z-[100] bg-[#050505]/98 backdrop-blur-3xl flex flex-col p-12 select-none"
           >
-            <div className="flex justify-between items-center mb-12">
+            {/* Panel Header */}
+            <div className="flex justify-between items-center mb-8 flex-shrink-0">
               <div>
                 <h2 className="text-4xl font-bold tracking-tighter uppercase italic text-white">Mission Manifest</h2>
                 <p className="text-[10px] font-black text-silver/40 uppercase tracking-[0.4em] mt-2">Active Target Selection</p>
               </div>
-              <button onClick={() => setShowLeadsList(false)} className="p-4 bg-white/5 rounded-2xl text-white hover:bg-white/10 transition-all">
-                <CloseIcon className="w-8 h-8" />
+              <button 
+                onClick={() => { setShowLeadsList(false); setManifestPage(0); }} 
+                className="p-4 bg-white/5 rounded-2xl text-white hover:bg-white/10 transition-all border border-white/5"
+              >
+                <CloseIcon className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="relative mb-8">
+            {/* Search */}
+            <div className="relative mb-6 flex-shrink-0">
               <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-silver/20" />
               <input 
                 value={leadsListSearch}
-                onChange={e => setLeadsListSearch(e.target.value)}
-                placeholder="Search dossiers..." 
+                onChange={e => { setLeadsListSearch(e.target.value); setManifestPage(0); }}
+                placeholder="Search dossiers by name, company, phone, email..." 
                 className="w-full h-16 bg-white/[0.03] border border-white/5 rounded-2xl pl-16 pr-6 text-white text-sm focus:border-accent/40 outline-none transition-all"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 overflow-y-auto custom-scrollbar pr-4">
-              {allLeads
-                .filter(l => 
-                  l.first_name?.toLowerCase().includes(leadsListSearch.toLowerCase()) || 
-                  l.phone?.includes(leadsListSearch)
-                )
-                .map(lead => (
-                <div 
-                  key={lead.id} 
-                  className="p-8 bg-white/[0.02] border border-white/5 rounded-[32px] flex items-center justify-between hover:bg-white/[0.04] hover:border-white/10 transition-all group relative overflow-hidden"
-                >
-                  <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 bg-white/[0.03] border border-white/5 rounded-2xl flex items-center justify-center text-silver/20 group-hover:text-accent group-hover:bg-accent/10 transition-all">
-                      <Building2 className="w-7 h-7" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-white text-lg tracking-tight truncate max-w-[150px]">{lead.first_name}</p>
-                      <p className="text-[10px] font-mono text-silver/30 uppercase tracking-widest mt-1">{lead.phone}</p>
-                    </div>
-                  </div>
-                  
-                  <button 
-                    onClick={() => {
-                      setCurrentLead(lead);
-                      setShowLeadsList(false);
-                      setStatus('idle');
-                      stopRinging();
-                    }}
-                    className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-silver/40 hover:text-white hover:bg-accent hover:border-accent transition-all shadow-xl"
-                  >
-                    <Eye className="w-6 h-6" />
-                  </button>
-                </div>
-              ))}
+            {/* Table Header */}
+            <div className="grid grid-cols-12 gap-4 px-10 py-4 border-t border-x border-white/5 text-[9px] font-black text-silver/40 uppercase tracking-widest bg-black/20 rounded-t-[32px] flex-shrink-0">
+              <span className="col-span-1">#</span>
+              <span className="col-span-2">Name</span>
+              <span className="col-span-2">Company</span>
+              <span className="col-span-2">Phone</span>
+              <span className="col-span-2">Email</span>
+              <span className="col-span-1">Called</span>
+              <span className="col-span-1">Status</span>
+              <span className="col-span-1 text-right">Action</span>
             </div>
+
+            {/* Leads List */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-white/[0.02] bg-white/[0.01] border border-white/5 rounded-b-[32px] mb-8 pr-2 select-text selection:bg-accent/30">
+              {(() => {
+                const filtered = allLeads.filter(l => 
+                  l.first_name?.toLowerCase().includes(leadsListSearch.toLowerCase()) || 
+                  l.phone?.includes(leadsListSearch) ||
+                  l.company_name?.toLowerCase().includes(leadsListSearch.toLowerCase()) ||
+                  l.email?.toLowerCase().includes(leadsListSearch.toLowerCase())
+                );
+                
+                const paginated = filtered.slice(manifestPage * 50, (manifestPage + 1) * 50);
+                
+                if (paginated.length === 0) {
+                  return <div className="text-center py-20 text-silver/20 text-sm font-bold uppercase tracking-widest italic">No dossiers found</div>;
+                }
+                
+                const STATUS_COLORS: Record<string, string> = {
+                  pending:      'bg-white/5 text-silver/40 border-white/10',
+                  booked:       'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+                  interested:   'bg-blue-500/15 text-blue-400 border-blue-500/30',
+                  voicemail:    'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+                  'no answer':  'bg-orange-500/15 text-orange-400 border-orange-500/30',
+                  busy:         'bg-purple-500/15 text-purple-400 border-purple-500/30',
+                  'not interested': 'bg-red-500/15 text-red-400 border-red-500/30',
+                };
+                
+                return paginated.map((lead, i) => {
+                  const statusKey = (lead.status || 'pending').toLowerCase();
+                  const badgeClass = STATUS_COLORS[statusKey] || STATUS_COLORS['pending'];
+                  const rowNum = manifestPage * 50 + i + 1;
+                  
+                  return (
+                    <div 
+                      key={lead.id} 
+                      className={`grid grid-cols-12 gap-4 px-10 py-4 items-center hover:bg-white/[0.02] transition-colors text-sm text-silver/80 ${
+                        statusKey === 'booked' ? 'bg-emerald-500/[0.02]' :
+                        statusKey === 'not interested' ? 'bg-red-500/[0.02]' : ''
+                      }`}
+                    >
+                      <span className="col-span-1 text-[11px] font-mono text-silver/20">{rowNum}</span>
+                      <span className="col-span-2 font-bold text-white truncate">{lead.first_name || '—'}</span>
+                      <span className="col-span-2 text-silver/40 text-xs truncate">{lead.company_name || '—'}</span>
+                      <span className="col-span-2 font-mono text-xs text-white">{lead.phone || '—'}</span>
+                      <span className="col-span-2 text-silver/40 text-xs truncate">{lead.email || '—'}</span>
+                      <span className="col-span-1 text-[10px] text-silver/40 font-mono">
+                        {lead.last_called_at ? new Date(lead.last_called_at).toLocaleDateString([], { day: '2-digit', month: 'short' }) : '—'}
+                      </span>
+                      <span className="col-span-1">
+                        <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider border ${badgeClass}`}>
+                          {lead.status || 'pending'}
+                        </span>
+                      </span>
+                      <div className="col-span-1 text-right flex justify-end">
+                        <button 
+                          onClick={() => {
+                            setCurrentLead(lead);
+                            setShowLeadsList(false);
+                            setStatus('idle');
+                            stopRinging();
+                            setManifestPage(0);
+                          }}
+                          className="w-10 h-10 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-silver/40 hover:text-white hover:bg-accent hover:border-accent transition-all"
+                          title="Select Dossier"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+
+            {/* Table Pagination */}
+            {(() => {
+              const filtered = allLeads.filter(l => 
+                l.first_name?.toLowerCase().includes(leadsListSearch.toLowerCase()) || 
+                l.phone?.includes(leadsListSearch) ||
+                l.company_name?.toLowerCase().includes(leadsListSearch.toLowerCase()) ||
+                l.email?.toLowerCase().includes(leadsListSearch.toLowerCase())
+              );
+              
+              const totalCount = filtered.length;
+              const totalPages = Math.ceil(totalCount / 50);
+              
+              if (totalPages <= 1) return null;
+              
+              return (
+                <div className="flex items-center justify-between px-2 flex-shrink-0">
+                  <p className="text-[11px] text-silver/30 font-mono">
+                    Showing {manifestPage * 50 + 1}–{Math.min((manifestPage + 1) * 50, totalCount)} of {totalCount.toLocaleString()} dossiers
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      disabled={manifestPage === 0}
+                      onClick={() => setManifestPage(prev => prev - 1)}
+                      className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white/10 disabled:opacity-20 transition-all flex items-center gap-2 text-white"
+                    >
+                      <ChevronLeft className="w-4 h-4" /> Previous
+                    </button>
+                    <button
+                      disabled={(manifestPage + 1) * 50 >= totalCount}
+                      onClick={() => setManifestPage(prev => prev + 1)}
+                      className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white/10 disabled:opacity-20 transition-all flex items-center gap-2 text-white"
+                    >
+                      Next <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </motion.div>
         )}
       </AnimatePresence>
