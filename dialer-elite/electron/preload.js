@@ -2,7 +2,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   minimize:        ()    => ipcRenderer.send('window-minimize'),
+  maximize:        ()    => ipcRenderer.send('window-maximize'),
   close:           ()    => ipcRenderer.send('window-close'),
+  onMaximizeStatus: (cb) => { ipcRenderer.removeAllListeners('window-maximize-status'); ipcRenderer.on('window-maximize-status', (_e, v) => cb(v)); },
   hangup:          ()    => ipcRenderer.send('window-hangup'),
   setSipConfig:    (c)   => ipcRenderer.send('set-sip-config', c),
   sendSipPacket:   (p)   => ipcRenderer.invoke('send-sip-packet', p),

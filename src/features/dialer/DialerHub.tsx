@@ -382,16 +382,45 @@ export default function DialerHub() {
   return (
     <div className="p-8 space-y-10 max-w-7xl mx-auto min-h-screen">
       {/* Header */}
-      <div className="flex justify-between items-end border-b border-border pb-8">
-        <div className="space-y-2">
+      <div className="flex justify-between items-center border-b border-border pb-8">
+        <div className="space-y-1">
           <h1 className="text-5xl font-bold tracking-tighter text-foreground uppercase italic">Elite Command</h1>
           <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.5em]">{isAdmin ? 'CENTRAL HUB' : 'AGENT MISSION'}</p>
         </div>
         
-        <div className="flex gap-4">
-          <button onClick={() => setView('campaigns')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === 'campaigns' ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:text-foreground'}`}>Manifests</button>
-          <button onClick={() => setView('reports')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === 'reports' ? 'bg-primary/10 text-primary border border-primary/20 shadow-lg shadow-primary/10' : 'text-muted-foreground hover:text-foreground'}`}>Intelligence</button>
-          {isAdmin && <button onClick={() => setView('lines')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === 'lines' ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:text-foreground'}`}>VoIP Lines</button>}
+        <div className="flex gap-3 items-center">
+          <button 
+            onClick={() => setView('campaigns')} 
+            className={`h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center ${
+              view === 'campaigns' 
+                ? 'bg-primary/10 text-primary border border-primary/20 shadow-md shadow-primary/5' 
+                : 'text-muted-foreground hover:text-foreground border border-transparent'
+            }`}
+          >
+            Manifests
+          </button>
+          <button 
+            onClick={() => setView('reports')} 
+            className={`h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center ${
+              view === 'reports' 
+                ? 'bg-primary/10 text-primary border border-primary/20 shadow-md shadow-primary/5' 
+                : 'text-muted-foreground hover:text-foreground border border-transparent'
+            }`}
+          >
+            Intelligence
+          </button>
+          {isAdmin && (
+            <button 
+              onClick={() => setView('lines')} 
+              className={`h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center ${
+                view === 'lines' 
+                  ? 'bg-primary/10 text-primary border border-primary/20 shadow-md shadow-primary/5' 
+                  : 'text-muted-foreground hover:text-foreground border border-transparent'
+              }`}
+            >
+              VoIP Lines
+            </button>
+          )}
           
           {isAdmin && view === 'campaigns' && (
             <label className="h-10 px-6 bg-primary text-primary-foreground font-black text-[10px] uppercase tracking-widest rounded-xl flex items-center gap-2 cursor-pointer hover:opacity-90 transition-all shadow-xl shadow-primary/20">
@@ -408,7 +437,7 @@ export default function DialerHub() {
         </div>
       </div>
 
-      <div className="flex gap-8">
+      <div className="flex gap-8 items-start">
         {!isAdmin && (
           <aside className="w-64 space-y-6">
             <div className="p-8 bg-card border border-border rounded-3xl space-y-8">

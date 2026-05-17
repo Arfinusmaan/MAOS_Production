@@ -107,6 +107,7 @@ async function deleteNotesDraft(leadId: string) {
 export default function App() {
   const isElectron = typeof window !== 'undefined' && !!window.electronAPI;
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
   const [agentEmail, setAgentEmail] = useState('');
   const [agentName, setAgentName] = useState('');
   const [userId, setUserId] = useState('');
@@ -295,9 +296,14 @@ export default function App() {
       setAgentEmail(email);
       setUserId(session.user.id);
       loadAgentWorld(email);
-      
       // Subscribe to SIP Telemetry (Electron only)
       if (isElectron) {
+        if (window.electronAPI.onMaximizeStatus) {
+          window.electronAPI.onMaximizeStatus((status: boolean) => {
+            setIsMaximized(status);
+          });
+        }
+
         window.electronAPI.onSipIncoming((data: any) => {
           const msg = data.message;
           const trimmed = msg.trim();
@@ -1054,8 +1060,15 @@ export default function App() {
   if (!isLoggedIn) return (
     <div className="h-screen bg-[#050505] flex items-center justify-center p-12 relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(249,115,22,0.05),transparent_70%)]" />
-      <div className="absolute top-0 right-0 p-6 flex gap-3 z-50">
+      <div className="absolute top-0 right-0 p-6 flex gap-3 z-50 items-center">
         <button onClick={() => window.electronAPI.minimize()} className="p-2 text-silver hover:text-white transition-all"><Minus className="w-5 h-5" /></button>
+        <button onClick={() => window.electronAPI.maximize()} className="p-2 text-silver hover:text-white transition-all flex items-center justify-center">
+          {isMaximized ? (
+            <svg className="w-3.5 h-3.5" viewBox="0 0 10 10"><path fill="none" stroke="currentColor" strokeWidth="1" d="M1.5,3.5 L1.5,8.5 L6.5,8.5 L6.5,3.5 Z M3.5,3.5 L3.5,1.5 L8.5,1.5 L8.5,6.5 L6.5,6.5" /></svg>
+          ) : (
+            <svg className="w-3.5 h-3.5" viewBox="0 0 10 10"><rect fill="none" stroke="currentColor" strokeWidth="1" x="1.5" y="1.5" width="7" height="7" /></svg>
+          )}
+        </button>
         <button onClick={() => window.electronAPI.close()} className="p-2 text-silver hover:text-red-500 transition-all"><CloseIcon className="w-5 h-5" /></button>
       </div>
       <form onSubmit={async (e: any) => {
@@ -1169,8 +1182,15 @@ export default function App() {
             </button>
           </div>
           <div className="w-px h-6 bg-white/5 mx-2" />
-          <div className="flex gap-1">
+          <div className="flex gap-1 items-center">
             <button onClick={() => window.electronAPI.minimize()} className="p-1.5 text-silver hover:text-white"><Minus className="w-4 h-4" /></button>
+            <button onClick={() => window.electronAPI.maximize()} className="p-1.5 text-silver hover:text-white flex items-center justify-center">
+              {isMaximized ? (
+                <svg className="w-3 h-3" viewBox="0 0 10 10"><path fill="none" stroke="currentColor" strokeWidth="1" d="M1.5,3.5 L1.5,8.5 L6.5,8.5 L6.5,3.5 Z M3.5,3.5 L3.5,1.5 L8.5,1.5 L8.5,6.5 L6.5,6.5" /></svg>
+              ) : (
+                <svg className="w-3.5 h-3.5" viewBox="0 0 10 10"><rect fill="none" stroke="currentColor" strokeWidth="1" x="1.5" y="1.5" width="7" height="7" /></svg>
+              )}
+            </button>
             <button onClick={() => window.electronAPI.close()} className="p-1.5 text-silver hover:text-red-500"><CloseIcon className="w-4 h-4" /></button>
           </div>
         </div>

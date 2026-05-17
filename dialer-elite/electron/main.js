@@ -1343,6 +1343,8 @@ function createWindow() {
   });
   isDev ? mainWin.loadURL('http://localhost:5174') : mainWin.loadFile(path.join(__dirname, '../dist/index.html'));
   mainWin.once('ready-to-show', () => { mainWin.show(); console.log('[ELITE_LAUNCH] System Online.'); });
+  mainWin.on('maximize',   () => { if (mainWin) mainWin.webContents.send('window-maximize-status', true); });
+  mainWin.on('unmaximize', () => { if (mainWin) mainWin.webContents.send('window-maximize-status', false); });
   mainWin.on('closed', () => { mainWin = null; });
 }
 
@@ -1376,6 +1378,15 @@ autoUpdater.on('update-downloaded', () => {
 });
 
 ipcMain.on('window-minimize', () => { if (mainWin) mainWin.minimize(); });
+ipcMain.on('window-maximize', () => {
+  if (mainWin) {
+    if (mainWin.isMaximized()) {
+      mainWin.unmaximize();
+    } else {
+      mainWin.maximize();
+    }
+  }
+});
 ipcMain.on('window-close',    () => { if (mainWin) mainWin.close(); });
 
 app.on('window-all-closed', () => {
