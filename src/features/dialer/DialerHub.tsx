@@ -137,13 +137,13 @@ export default function DialerHub() {
   };
 
   const STATUS_COLORS: Record<string, string> = {
-    pending:      'bg-white/5 text-white/40 border-white/10',
-    booked:       'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    interested:   'bg-blue-500/15 text-blue-400 border-blue-500/30',
-    voicemail:    'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
-    'no answer':  'bg-orange-500/15 text-orange-400 border-orange-500/30',
-    busy:         'bg-purple-500/15 text-purple-400 border-purple-500/30',
-    'not interested': 'bg-red-500/15 text-red-400 border-red-500/30',
+    pending:      'bg-slate-100 text-slate-600 border-slate-200 dark:bg-white/5 dark:text-silver/40 dark:border-white/10',
+    booked:       'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30',
+    interested:   'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/30',
+    voicemail:    'bg-yellow-500/10 text-yellow-600 border-yellow-500/20 dark:bg-yellow-500/15 dark:text-yellow-400 dark:border-yellow-500/30',
+    'no answer':  'bg-orange-500/10 text-orange-600 border-orange-500/20 dark:bg-orange-500/15 dark:text-orange-400 dark:border-orange-500/30',
+    busy:         'bg-purple-500/10 text-purple-600 border-purple-500/20 dark:bg-purple-500/15 dark:text-purple-400 dark:border-purple-500/30',
+    'not interested': 'bg-red-500/10 text-red-600 border-red-500/20 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/30',
   };
 
   const parseLeads = (rawData: any[], campaignId: string) => {
@@ -419,7 +419,7 @@ export default function DialerHub() {
               </div>
               <button 
                 onClick={() => {
-                  window.open('https://github.com/Arfinusmaan/MAOS_Production/releases/download/v1.0.0/MAOS%20Elite%20Dialer%201.0.0.exe', '_blank');
+                  window.open('https://github.com/Arfinusmaan/MAOS_Production/releases/download/v1.0.0/MAOS.Elite.Dialer.1.0.0.exe', '_blank');
                 }}
                 className="w-full py-3 bg-foreground text-background text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all"
               >
@@ -805,13 +805,13 @@ export default function DialerHub() {
             <div className="flex items-center gap-3 px-10 py-4 border-b border-border flex-shrink-0 flex-wrap">
               <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mr-2">Status:</span>
               {[
-                { label: 'Pending', color: 'bg-white/10 text-white/50' },
-                { label: 'Booked', color: 'bg-emerald-500/20 text-emerald-400' },
-                { label: 'Interested', color: 'bg-blue-500/20 text-blue-400' },
-                { label: 'Voicemail', color: 'bg-yellow-500/20 text-yellow-400' },
-                { label: 'No Answer', color: 'bg-orange-500/20 text-orange-400' },
-                { label: 'Busy', color: 'bg-purple-500/20 text-purple-400' },
-                { label: 'Not Interested', color: 'bg-red-500/20 text-red-400' },
+                { label: 'Pending', color: 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-white/10 dark:text-white/50 dark:border-white/10' },
+                { label: 'Booked', color: 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-transparent' },
+                { label: 'Interested', color: 'bg-blue-500/10 text-blue-600 border border-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400 dark:border-transparent' },
+                { label: 'Voicemail', color: 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20 dark:bg-yellow-500/20 dark:text-yellow-400 dark:border-transparent' },
+                { label: 'No Answer', color: 'bg-orange-500/10 text-orange-600 border border-orange-500/20 dark:bg-orange-500/20 dark:text-orange-400 dark:border-transparent' },
+                { label: 'Busy', color: 'bg-purple-500/10 text-purple-600 border border-purple-500/20 dark:bg-purple-500/20 dark:text-purple-400 dark:border-transparent' },
+                { label: 'Not Interested', color: 'bg-red-500/10 text-red-600 border border-red-500/20 dark:bg-red-500/20 dark:text-red-400 dark:border-transparent' },
               ].map(s => (
                 <span key={s.label} className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${s.color}`}>{s.label}</span>
               ))}
