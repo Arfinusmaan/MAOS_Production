@@ -449,11 +449,23 @@ export default function DialerHub() {
                 <h4 className="font-bold text-foreground italic">Desktop App</h4>
               </div>
               <button 
-                onClick={() => {
-                  window.open('https://github.com/Arfinusmaan/MAOS_Production/releases/download/v1.0.0/MAOS.Elite.Dialer.1.0.0.exe', '_blank');
+                onClick={async () => {
+                  try {
+                    const res = await fetch('https://api.github.com/repos/Arfinusmaan/MAOS_Production/releases/latest');
+                    const data = await res.json();
+                    const exeAsset = data.assets?.find((a: any) => a.name.endsWith('.exe'));
+                    if (exeAsset?.browser_download_url) {
+                      window.open(exeAsset.browser_download_url, '_blank');
+                    } else {
+                      window.open('https://github.com/Arfinusmaan/MAOS_Production/releases/latest', '_blank');
+                    }
+                  } catch (err) {
+                    window.open('https://github.com/Arfinusmaan/MAOS_Production/releases/latest', '_blank');
+                  }
                 }}
-                className="w-full py-3 bg-foreground text-background text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all"
+                className="w-full py-3 bg-foreground text-background text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2"
               >
+                <Download className="w-3 h-3" />
                 Download Now
               </button>
             </div>
